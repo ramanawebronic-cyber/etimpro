@@ -1,0 +1,177 @@
+/**
+ * ETIM Admin Settings Styles
+ * 
+ * @package ETIM_For_WooCommerce
+ */
+
+/* Main Container */
+.etim-settings-wrap {
+    margin: 20px 20px 20px 0;
+}
+
+.etim-settings-wrap h1 {
+    margin-bottom: 20px;
+}
+
+.etim-settings-container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.etim-settings-main {
+    flex: 1;
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.etim-settings-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+/* Form Styles */
+.etim-settings-main .form-table th {
+    padding: 20px 10px 20px 0;
+    width: 200px;
+}
+
+.etim-settings-main .form-table td {
+    padding: 15px 10px;
+}
+
+.etim-settings-main .regular-text {
+    width: 100%;
+    max-width: 400px;
+}
+
+.etim-settings-main select {
+    width: 100%;
+    max-width: 400px;
+}
+
+.etim-settings-main .description {
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+/* Toggle Secret Button */
+.etim-toggle-secret {
+    vertical-align: middle;
+    margin-left: 5px;
+    padding: 3px 8px;
+}
+
+.etim-toggle-secret .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Test Connection Section */
+.etim-test-connection-container {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #ccd0d4;
+}
+
+.etim-test-connection-container h2 {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+}
+
+.etim-test-result {
+    margin-top: 15px;
+    padding: 12px 15px;
+    border-radius: 4px;
+    display: none;
+}
+
+.etim-test-result.success {
+    display: block;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.etim-test-result.error {
+    display: block;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.etim-test-result.loading {
+    display: block;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+}
+
+/* Info Boxes */
+.etim-info-box {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.etim-info-box h3 {
+    margin: 0 0 15px 0;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 1.1em;
+}
+
+.etim-info-box p {
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.etim-info-box ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #666;
+}
+
+.etim-info-box ol li {
+    margin-bottom: 8px;
+}
+
+.etim-info-box .button {
+    margin-top: 5px;
+}
+
+/* Responsive */
+@media screen and (max-width: 1200px) {
+    .etim-settings-container {
+        flex-direction: column;
+    }
+    
+    .etim-settings-sidebar {
+        width: 100%;
+        max-width: 600px;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .etim-settings-main .form-table th {
+        padding: 10px 0;
+        width: auto;
+    }
+    
+    .etim-settings-main .form-table td {
+        padding: 10px 0;
+    }
+    
+    .etim-settings-main .regular-text,
+    .etim-settings-main select {
+        max-width: 100%;
+    }
+}
