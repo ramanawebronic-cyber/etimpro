@@ -1,177 +1,447 @@
 /**
- * ETIM Admin Settings Styles
+ * ETIM Admin Settings Styles - Enterprise SaaS UI
  * 
  * @package ETIM_For_WooCommerce
  */
 
-/* Main Container */
-.etim-settings-wrap {
-    margin: 20px 20px 20px 0;
+:root {
+    --etim-bg-app: #F3F4F6;
+    --etim-bg-card: #FFFFFF;
+    --etim-bg-header: #F8FAFC;
+    --etim-primary: #4888E8;
+    --etim-primary-hover: #3874CD;
+    --etim-text-dark: #0F172A;
+    --etim-text-gray: #475569;
+    --etim-text-light: #94A3B8;
+    --etim-border: #E2E8F0;
+    --etim-success-bg: #D1FAE5;
+    --etim-success-text: #065F46;
+    --etim-danger-bg: #FEE2E2;
+    --etim-danger-text: #991B1B;
+    --etim-popular-bg: #4888E8;
+    --etim-popular-text: #FFFFFF;
+    --etim-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
-.etim-settings-wrap h1 {
+.etim-dashboard-wrapper {
+    max-width: 1280px;
+    margin: 24px 24px 24px 0;
+    font-family: var(--etim-font);
+    color: var(--etim-text-dark);
+}
+
+.etim-dashboard-wrapper * {
+    box-sizing: border-box;
+}
+
+.etim-dashboard-header {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--etim-text-dark);
+    margin: 0 0 32px 0;
+    line-height: 1.2;
+}
+
+/* Cards */
+.etim-card {
+    background: var(--etim-bg-card);
+    border: 1px solid var(--etim-border);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.etim-card-p {
+    padding: 24px;
+}
+
+.etim-card-header {
+    background: var(--etim-bg-header);
+    padding: 24px;
+    border-bottom: 1px solid var(--etim-border);
+}
+
+.etim-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--etim-text-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Buttons */
+.etim-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    border: none;
+}
+
+.etim-btn-primary {
+    background: var(--etim-primary);
+    color: #FFF !important;
+}
+
+.etim-btn-primary:hover {
+    background: var(--etim-primary-hover);
+    color: #FFF;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.etim-btn-secondary {
+    background: #FFF;
+    color: var(--etim-text-dark) !important;
+    border: 1px solid #CBD5E1;
+}
+
+.etim-btn-secondary:hover {
+    background: var(--etim-bg-header);
+    border-color: var(--etim-text-light);
+}
+
+/* License & Activation */
+.etim-license-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
     margin-bottom: 20px;
 }
 
-.etim-settings-container {
-    display: flex;
-    gap: 30px;
-    align-items: flex-start;
-}
-
-.etim-settings-main {
-    flex: 1;
-    background: #fff;
-    padding: 20px;
-    border: 1px solid #ccd0d4;
+.etim-input {
+    padding: 10px 14px;
+    border: 1px solid var(--etim-border);
     border-radius: 4px;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    font-size: 14px;
+    flex: 1;
+    min-width: 250px;
 }
 
-.etim-settings-sidebar {
-    width: 300px;
+.etim-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(15, 76, 129, 0.3);
+    border-color: var(--etim-primary);
+}
+
+.etim-status-block {
+    background: var(--etim-bg-header);
+    padding: 16px 24px;
+    border-radius: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.etim-badge {
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.etim-badge-active {
+    background: var(--etim-success-bg);
+    color: var(--etim-success-text);
+}
+
+.etim-badge-expired {
+    background: var(--etim-danger-bg);
+    color: var(--etim-danger-text);
+}
+
+.etim-badge-popular {
+    position: absolute;
+    top: -12px;
+    right: 24px;
+    background: var(--etim-popular-bg);
+    color: var(--etim-popular-text);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pricing Grid */
+.etim-pricing-section-title {
+    font-size: 18px;
+    color: var(--etim-text-gray);
+    text-align: center;
+    margin: 40px 0 24px;
+    font-weight: 500;
+}
+
+.etim-pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.etim-pricing-card {
+    background: #FFF;
+    border: 1px solid var(--etim-border);
+    border-radius: 6px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.etim-pricing-popular {
+    border-color: var(--etim-primary);
+    box-shadow: 0 10px 15px -3px rgba(15, 76, 129, 0.1);
+}
+
+.etim-plan-header {
+    background: var(--etim-bg-header);
+    padding: 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--etim-border);
+    border-radius: 6px 6px 0 0;
+}
+
+.etim-plan-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--etim-text-dark);
+    margin: 0 0 8px 0;
+}
+
+.etim-plan-price {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--etim-text-dark);
+    margin: 0 0 8px 0;
+}
+
+.etim-plan-price span {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--etim-text-gray);
+}
+
+.etim-plan-tagline {
+    font-size: 13px;
+    color: var(--etim-text-gray);
+    margin: 0;
+}
+
+.etim-plan-features {
+    padding: 24px;
+    flex-grow: 1;
+}
+
+.etim-feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+}
+
+.etim-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--etim-text-dark);
+}
+
+.etim-feature-item.negative {
+    color: var(--etim-text-light);
+}
+
+.etim-feature-icon {
     flex-shrink: 0;
 }
 
-/* Form Styles */
-.etim-settings-main .form-table th {
-    padding: 20px 10px 20px 0;
-    width: 200px;
+.etim-feature-icon.check {
+    color: #10B981;
 }
 
-.etim-settings-main .form-table td {
-    padding: 15px 10px;
+.etim-feature-icon.cross {
+    color: var(--etim-text-light);
 }
 
-.etim-settings-main .regular-text {
+.etim-plan-action {
+    padding: 0 24px 24px;
+    margin-top: auto;
+}
+
+.etim-plan-action .etim-btn {
     width: 100%;
-    max-width: 400px;
 }
 
-.etim-settings-main select {
-    width: 100%;
-    max-width: 400px;
+/* 3-Column Dashboard Grid */
+.etim-dash-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
 }
 
-.etim-settings-main .description {
-    color: #666;
-    font-style: italic;
-    margin-top: 5px;
-}
-
-/* Toggle Secret Button */
-.etim-toggle-secret {
-    vertical-align: middle;
-    margin-left: 5px;
-    padding: 3px 8px;
-}
-
-.etim-toggle-secret .dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-}
-
-/* Test Connection Section */
-.etim-test-connection-container {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #ccd0d4;
-}
-
-.etim-test-connection-container h2 {
-    font-size: 1.2em;
-    margin-bottom: 10px;
-}
-
-.etim-test-result {
-    margin-top: 15px;
-    padding: 12px 15px;
-    border-radius: 4px;
-    display: none;
-}
-
-.etim-test-result.success {
-    display: block;
-    background-color: #d4edda;
-    border: 1px solid #c3e6cb;
-    color: #155724;
-}
-
-.etim-test-result.error {
-    display: block;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-}
-
-.etim-test-result.loading {
-    display: block;
-    background-color: #fff3cd;
-    border: 1px solid #ffeeba;
-    color: #856404;
-}
-
-/* Info Boxes */
-.etim-info-box {
-    background: #fff;
-    padding: 20px;
-    border: 1px solid #ccd0d4;
-    border-radius: 4px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
-.etim-info-box h3 {
-    margin: 0 0 15px 0;
-    padding: 0 0 10px 0;
-    border-bottom: 1px solid #eee;
-    font-size: 1.1em;
-}
-
-.etim-info-box p {
-    color: #666;
-    margin-bottom: 15px;
-}
-
-.etim-info-box ol {
+/* Data Status & System Health */
+.etim-data-list {
+    list-style: none;
+    padding: 0;
     margin: 0;
-    padding-left: 20px;
-    color: #666;
 }
 
-.etim-info-box ol li {
+.etim-data-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--etim-border);
+    font-size: 14px;
+}
+
+.etim-data-row:last-child {
+    border-bottom: none;
+}
+
+.etim-data-label {
+    color: var(--etim-text-gray);
+}
+
+.etim-data-value {
+    font-weight: 600;
+    color: var(--etim-text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Progress Bar */
+.etim-progress-wrap {
+    margin: 20px 0;
+}
+
+.etim-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
     margin-bottom: 8px;
 }
 
-.etim-info-box .button {
-    margin-top: 5px;
+.etim-progress-bar-bg {
+    height: 8px;
+    background: var(--etim-border);
+    border-radius: 4px;
+    overflow: hidden;
 }
 
-/* Responsive */
-@media screen and (max-width: 1200px) {
-    .etim-settings-container {
-        flex-direction: column;
-    }
-    
-    .etim-settings-sidebar {
-        width: 100%;
-        max-width: 600px;
+.etim-progress-bar-fill {
+    height: 100%;
+    background: var(--etim-primary);
+    border-radius: 4px;
+}
+
+.etim-progress-sub {
+    font-size: 12px;
+    color: var(--etim-text-gray);
+    margin-top: 8px;
+    text-align: right;
+}
+
+/* Quick Actions */
+.etim-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.etim-action-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    border: 1px solid var(--etim-border);
+    border-radius: 6px;
+    background: #FFF;
+    text-decoration: none;
+    color: var(--etim-text-dark);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-align: center;
+    gap: 8px;
+}
+
+.etim-action-tile:hover {
+    background: var(--etim-bg-header);
+    border-color: var(--etim-primary);
+    color: var(--etim-primary);
+}
+
+.etim-action-icon {
+    font-size: 24px;
+    color: var(--etim-primary);
+}
+
+/* System Health Horizontal List */
+.etim-health-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.etim-health-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--etim-text-dark);
+}
+
+.etim-health-status {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.etim-health-ok {
+    color: #10B981;
+}
+
+.etim-health-info {
+    color: var(--etim-primary);
+}
+
+/* API Settings Legacy Wrap */
+.etim-api-settings-wrap {
+    margin-top: 40px;
+    border-top: 1px solid var(--etim-border);
+    padding-top: 32px;
+}
+
+@media (max-width: 1024px) {
+
+    .etim-pricing-grid,
+    .etim-dash-grid {
+        grid-template-columns: 1fr;
     }
 }
 
-@media screen and (max-width: 782px) {
-    .etim-settings-main .form-table th {
-        padding: 10px 0;
-        width: auto;
-    }
-    
-    .etim-settings-main .form-table td {
-        padding: 10px 0;
-    }
-    
-    .etim-settings-main .regular-text,
-    .etim-settings-main select {
-        max-width: 100%;
-    }
+.etim-img-alert {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 2px;
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
 }

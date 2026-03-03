@@ -100,11 +100,27 @@ $assets_url = $plugin_url . '/assets/images/';
                 <?php esc_html_e('No features added yet. Click "Add" to add features.', 'etim-for-woocommerce'); ?>
             </div> -->
         </div>
-        
-        <!-- Save Section -->
-        <div class="etim-save-section" id="etim-save-section">
-            <button type="button" id="etim-save-btn" class="etim-btn etim-btn-save"><?php esc_html_e('Save ETIM Data', 'etim-for-woocommerce'); ?></button>
-            <span id="etim-save-status" class="etim-save-status"></span>
+        <!-- Action Bar Section: Save, Download, and Shortcode in same row -->
+        <div class="etim-action-bar" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 16px; flex-wrap: wrap; gap: 16px;">
+            <div class="etim-save-section" id="etim-save-section" style="display: flex; align-items: center; gap: 12px; margin: 0; padding: 0; border: none; background: transparent;">
+                <button type="button" id="etim-save-btn" class="etim-btn etim-btn-save" style="margin: 0;"><?php esc_html_e('Save ETIM Data', 'etim-for-woocommerce'); ?></button>
+                <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_xml_export_single&product_id=' . $post->ID)); ?>" class="etim-btn etim-btn-xml" id="etim-download-xml-btn" style="margin: 0;"><?php esc_html_e('Download XML', 'etim-for-woocommerce'); ?></a>
+                <span id="etim-save-status" class="etim-save-status" style="margin-left: 8px;"></span>
+            </div>
+
+            <div class="etim-shortcode-save-bar" style="margin: 0; padding: 0; border: none; background: transparent; box-shadow: none;">
+                <div class="etim-shortcode-compact" style="margin: 0; border: 1px solid #e2e8f0;">
+                    <span class="etim-shortcode-label"><?php esc_html_e('ETIM Shortcode', 'etim-for-woocommerce'); ?></span>
+                    <code class="etim-shortcode-code" id="etim-shortcode-text">[etim_specs id="<?php echo esc_attr($post->ID); ?>"]</code>
+                    <button type="button" class="etim-shortcode-copy-btn" id="etim-copy-shortcode" onclick="var t=document.getElementById('etim-shortcode-text').textContent;navigator.clipboard?navigator.clipboard.writeText(t).then(function(){var b=document.getElementById('etim-copy-shortcode');b.classList.add('copied');setTimeout(function(){b.classList.remove('copied');},2000);}):void 0;" title="<?php esc_attr_e('Copy shortcode', 'etim-for-woocommerce'); ?>">
+                        <svg class="etim-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+                        <svg class="etim-check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                    <span class="etim-shortcode-info" title="<?php esc_attr_e('Copy and paste this shortcode to display the ETIM specifications anywhere on your site.', 'etim-for-woocommerce'); ?>">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
     

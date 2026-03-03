@@ -42,14 +42,10 @@ class ETIM_Ajax_Handler {
         add_action('wp_ajax_etim_fetch_class_details', [$this, 'fetch_class_details']);
         add_action('wp_ajax_etim_fetch_features', [$this, 'fetch_features']);
         
-        // AJAX handlers for saving/loading product ETIM data
-        add_action('wp_ajax_etim_load_product_data', [$this, 'load_product_data']);
-        add_action('wp_ajax_etim_remove_product_class', [$this, 'remove_product_class']);
+        // AJAX handler for class features (used by product meta JS)
         add_action('wp_ajax_etim_get_class_features', [$this, 'fetch_class_details']);
-            add_action('wp_ajax_etim_save_product_data', [$this, 'save_product_data']);
-            
+        add_action('wp_ajax_etim_save_product_data', [$this, 'save_product_data']);
 
-        
 
     }
    /**

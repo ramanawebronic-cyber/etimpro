@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ETIM_WC_VERSION', '3.0.61');
+define('ETIM_WC_VERSION', '3.0.96');
 define('ETIM_WC_PLUGIN_FILE', __FILE__);
 define('ETIM_WC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ETIM_WC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -98,9 +98,11 @@ final class ETIM_For_WooCommerce {
      */
     private function includes() {
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-api.php';
+        require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-license-manager.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-admin-settings.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-ajax-handler.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-product-meta.php';
+        require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-frontend-filter.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/db/class-etim-db.php';
     }
     
@@ -108,9 +110,11 @@ final class ETIM_For_WooCommerce {
      * Initialize classes
      */
     private function init_classes() {
+        ETIM_License_Manager::get_instance();
         ETIM_Admin_Settings::get_instance();
         ETIM_Ajax_Handler::get_instance();
         ETIM_Product_Meta::get_instance();
+        ETIM_Frontend_Filter::get_instance();
     }
     
     /**
@@ -386,3 +390,76 @@ function webronic_show_update_debug_info($plugin_meta, $plugin_file) {
     return $plugin_meta;
 }
 add_filter('plugin_row_meta', 'webronic_show_update_debug_info', 10, 2);
+
+
+// ===== ETIM Sidebar Layout for Product Category =====
+// ===== ETIM Sidebar Layout for Product Category =====
+add_action('wp_head', function () {
+
+    if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
+        return;
+    }
+
+    ?>
+    <style>
+        /* Main Layout */
+        .etim-archive-wrapper {
+            display: flex;
+            gap: 30px;
+        }
+
+        /* Sidebar */
+        .etim-sidebar {
+            width: 25%;
+            min-width: 250px;
+            padding: 20px;
+            /* Remove border/background to just rely on the plugin dropdown styling */
+            height: fit-content;
+        }
+
+        /* Product Area */
+        .etim-products {
+            width: 75%;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .etim-archive-wrapper {
+                flex-direction: column;
+            }
+
+            .etim-sidebar,
+            .etim-products {
+                width: 100%;
+            }
+        }
+    </style>
+    <?php
+});
+
+
+add_action('woocommerce_before_shop_loop', function () {
+
+    if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
+        return;
+    }
+
+    echo '<div class="etim-archive-wrapper">';
+    echo '<div class="etim-sidebar">';
+    echo do_shortcode('[etim_class_filter]');
+    echo '</div>';
+    echo '<div class="etim-products">';
+
+}, 5);
+
+
+add_action('woocommerce_after_shop_loop', function () {
+
+    if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
+        return;
+    }
+
+    echo '</div>'; // Close products
+    echo '</div>'; // Close wrapper
+
+}, 50);

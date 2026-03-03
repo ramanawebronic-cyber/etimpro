@@ -9,6 +9,7 @@
         currentGroupCode: null,
         allFeatures: [],
         assignedFeatures: [],
+        isRestoring: false,
 
         init: function () {
             var self = this;
@@ -232,6 +233,16 @@
         },
 
         onGroupChange: function (groupCode) {
+            if (this.isRestoring) {
+                // During restore, only load classes without clearing existing data
+                this.currentGroupCode = groupCode;
+                this.currentGroup = this.$groupSelect.find('option:selected').data('group');
+                if (groupCode) {
+                    this.loadClasses(groupCode);
+                }
+                return;
+            }
+
             this.$classSelect.empty().append('<option value="">Select ETIM Class</option>');
             this.$featuresGrid.empty();
             this.assignedFeatures = [];
@@ -247,7 +258,7 @@
             }
 
             this.currentGroupCode = groupCode;
-            this.currentGroup = this.$groupSelect.find('option:selected').data('group'); // Store full group object
+            this.currentGroup = this.$groupSelect.find('option:selected').data('group');
             this.loadClasses(groupCode);
         },
 
@@ -377,6 +388,7 @@
                 var groupCode = (savedClass.group && savedClass.group.code) ? savedClass.group.code : '';
 
                 if (groupCode) {
+                    self.isRestoring = true;
                     var interval = setInterval(function () {
                         if (self.$groupSelect.find('option').length > 1) {
                             clearInterval(interval);
@@ -422,6 +434,28 @@
                     self.$featuresSection.show();
                     self.$saveSection.css('display', 'flex');
 
+                    // Build currentClass from response data - THIS IS THE CRITICAL FIX
+                    var classData = { code: classCode };
+                    if (response && response.success && response.data) {
+                        classData = $.extend({}, response.data);
+                    }
+                    classData.code = classCode;
+
+                    // Get class description from the select dropdown
+                    var selectedClassData = self.$classSelect.find('option:selected').data('class');
+                    if (selectedClassData && selectedClassData.description) {
+                        classData.description = classData.description || selectedClassData.description;
+                    }
+
+                    // Attach group data
+                    if (self.currentGroup) {
+                        classData.group = self.currentGroup;
+                    } else if (self.currentGroupCode) {
+                        classData.group = { code: self.currentGroupCode, description: '' };
+                    }
+
+                    self.currentClass = classData;
+
                     if (savedFeatures && Array.isArray(savedFeatures)) {
                         savedFeatures.forEach(function (sFeat) {
                             var fullFeat = self.allFeatures.find(function (f) { return f.code === sFeat.code; });
@@ -429,6 +463,10 @@
                             self.addFeatureCard(featToRender);
                         });
                     }
+
+                    // Update the hidden JSON field with restored data
+                    self.updateDataJson();
+                    self.isRestoring = false;
                 }
             });
         },
@@ -714,6 +752,22 @@
 
         saveData: function () {
             var self = this;
+
+            // Safety: re-sync the hidden JSON field before saving
+            this.updateDataJson();
+
+            var jsonVal = this.$dataJson.val();
+            // Prevent accidental deletion: if we have features on screen but JSON is empty
+            if ((!jsonVal || jsonVal === '[]' || jsonVal === '') && this.assignedFeatures.length > 0) {
+                console.warn('ETIM: Data mismatch detected - features exist but JSON is empty. Rebuilding...');
+                if (this.currentClass) {
+                    this.currentClass.features = this.assignedFeatures;
+                    this.data = [this.currentClass];
+                    this.$dataJson.val(JSON.stringify(this.data));
+                    jsonVal = this.$dataJson.val();
+                }
+            }
+
             this.$saveBtn.text('Saving...').prop('disabled', true);
             this.$saveStatus.text('').removeClass('success error');
 
@@ -724,7 +778,7 @@
                     action: 'etim_save_product_data',
                     nonce: etimProductMeta.nonce,
                     product_id: etimProductMeta.productId,
-                    etim_data: this.$dataJson.val()
+                    etim_data: jsonVal
                 },
                 success: function (response) {
                     self.$saveBtn.text('Save ETIM Data').prop('disabled', false);

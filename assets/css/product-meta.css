@@ -604,29 +604,138 @@
 
 
 /* ========================================
+   SHORTCODE BAR (Compact Right Corner)
+   ======================================== */
+.etim-shortcode-save-bar {
+    padding: 12px 24px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.etim-shortcode-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+
+.etim-shortcode-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.etim-shortcode-code {
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    color: #4888E8;
+    background: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    user-select: all;
+    cursor: text;
+    white-space: nowrap;
+}
+
+.etim-shortcode-copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.etim-shortcode-copy-btn:hover {
+    background: #e2e8f0;
+    color: #4888E8;
+}
+
+.etim-shortcode-copy-btn .etim-check-icon {
+    display: none;
+}
+
+.etim-shortcode-copy-btn.copied .etim-copy-icon {
+    display: none;
+}
+
+.etim-shortcode-copy-btn.copied .etim-check-icon {
+    display: block;
+    color: #10b981;
+}
+
+.etim-shortcode-info {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    cursor: help;
+    position: relative;
+}
+
+.etim-shortcode-info:hover {
+    color: #4888E8;
+}
+
+/* ========================================
    SAVE
    ======================================== */
 .etim-save-section {
     padding: 20px 24px;
     border-top: 1px solid #f1f5f9;
     display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     justify-content: flex-start;
-    /* Left aligned */
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .etim-btn-save {
     background: #4888E8 !important;
-    /* Custom Blue */
     color: #FFFFFF;
-    padding: 10px 24px;
+    padding: 8px 18px;
     border: none !important;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .etim-btn-save:hover {
-    background: #4888E8 !important;
-    /* Slightly darker */
+    background: #3a6fd8 !important;
+}
+
+.etim-btn-xml {
+    background: #ffffff !important;
+    color: #4888E8 !important;
+    padding: 8px 18px;
+    border: 1.5px solid #4888E8 !important;
+    font-size: 13px;
+    text-decoration: none !important;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.4;
+}
+
+.etim-btn-xml:hover {
+    background: #f0f5ff !important;
+    color: #3a6fd8 !important;
 }
 
 .etim-save-status {

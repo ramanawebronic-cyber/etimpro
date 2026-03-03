@@ -45,6 +45,9 @@ class ETIM_Product_Meta {
         
         // Frontend display
         add_filter('woocommerce_product_tabs', [$this, 'add_product_tab']);
+        
+        // Shortcode
+        add_shortcode('etim_specs', [$this, 'render_shortcode']);
     }
     
     /**
@@ -256,5 +259,47 @@ class ETIM_Product_Meta {
         $etim_data = $this->get_product_etim_data($product->get_id());
         
         include ETIM_WC_PLUGIN_DIR . 'templates/product-tab.php';
+    }
+
+    /**
+     * Render ETIM shortcode
+     */
+    public function render_shortcode($atts) {
+        $atts = shortcode_atts([
+            'id' => ''
+        ], $atts, 'etim_specs');
+        
+        $product_id = !empty($atts['id']) ? intval($atts['id']) : get_the_ID();
+        
+        if (!$product_id) {
+            return '';
+        }
+
+        $etim_data = $this->get_product_etim_data($product_id);
+        
+        if (empty($etim_data)) {
+            return '';
+        }
+        
+        // Check if there are features with assigned values
+        $has_features = false;
+        foreach ($etim_data as $class) {
+            if (!empty($class['features'])) {
+                foreach ($class['features'] as $feature) {
+                    if (!empty($feature['assignedValue'])) {
+                        $has_features = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+        
+        if (!$has_features) {
+            return '';
+        }
+        
+        ob_start();
+        include ETIM_WC_PLUGIN_DIR . 'templates/product-tab.php';
+        return ob_get_clean();
     }
 }
