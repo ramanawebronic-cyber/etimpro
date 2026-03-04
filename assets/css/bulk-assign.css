@@ -1,0 +1,300 @@
+/* ========================================
+   BULK ETIM ASSIGNMENT PAGE
+   ======================================== */
+
+.etim-bulk-wrap {
+    max-width: 1200px;
+    margin: 20px auto 40px;
+    padding: 0 20px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.etim-bulk-wrap * {
+    box-sizing: border-box;
+}
+
+/* ========================================
+   PAGE HEADER
+   ======================================== */
+.etim-bulk-page-header {
+    margin-bottom: 24px;
+}
+
+.etim-bulk-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    transition: color 0.2s;
+}
+
+.etim-bulk-back-link:hover {
+    color: #4888E8;
+}
+
+.etim-bulk-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 8px 0 4px;
+    padding: 0;
+    line-height: 1.2;
+}
+
+.etim-bulk-subtitle {
+    color: #64748b;
+    font-size: 15px;
+    margin: 0;
+}
+
+/* ========================================
+   PRODUCTS SUMMARY CARD
+   ======================================== */
+.etim-bulk-products-summary {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.etim-bulk-products-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.etim-bulk-products-header:hover {
+    background: #f8fafc;
+}
+
+.etim-bulk-products-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #334155;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.etim-bulk-products-header-left svg {
+    color: #4888E8;
+}
+
+.etim-bulk-products-count {
+    font-weight: 600;
+}
+
+.etim-bulk-chevron {
+    color: #94a3b8;
+    transition: transform 0.2s;
+}
+
+.etim-bulk-chevron.open {
+    transform: rotate(180deg);
+}
+
+.etim-bulk-products-list {
+    border-top: 1px solid #f1f5f9;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.etim-bulk-product-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    border-bottom: 1px solid #f8fafc;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+.etim-bulk-product-item:hover {
+    background: #f8fafc;
+}
+
+.etim-bulk-product-item:last-child {
+    border-bottom: none;
+}
+
+.etim-bulk-product-id {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 50px;
+}
+
+.etim-bulk-product-name {
+    flex: 1;
+    color: #334155;
+    font-weight: 500;
+}
+
+.etim-bulk-product-link {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.etim-bulk-product-link:hover {
+    color: #4888E8;
+}
+
+/* ========================================
+   BULK CONTAINER - OVERRIDE SINGLE STYLES
+   ======================================== */
+#etim-bulk-container {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    color: #1e293b;
+}
+
+#etim-bulk-container .etim-card {
+    margin-bottom: 0;
+}
+
+/* ========================================
+   PER-PRODUCT SHORTCODES & XML SECTION
+   ======================================== */
+.etim-bulk-product-actions {
+    margin-top: 0;
+}
+
+.etim-bulk-product-actions-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 12px;
+}
+
+.etim-bulk-product-actions-header svg {
+    color: #94a3b8;
+}
+
+.etim-bulk-product-shortcodes-list {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.etim-bulk-shortcode-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+}
+
+.etim-bulk-shortcode-row:last-child {
+    border-bottom: none;
+}
+
+.etim-bulk-shortcode-product-name {
+    flex: 1;
+    color: #334155;
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etim-bulk-shortcode-row .etim-shortcode-code {
+    font-size: 11px;
+    padding: 3px 8px;
+    flex-shrink: 0;
+}
+
+.etim-btn-xml-small {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    height: auto !important;
+    gap: 4px !important;
+    border-radius: 4px !important;
+    white-space: nowrap;
+}
+
+.etim-btn-xml-small svg {
+    flex-shrink: 0;
+}
+
+/* ========================================
+   MODAL OVERRIDES FOR BULK PAGE
+   ======================================== */
+#etim-bulk-add-feature-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+#etim-bulk-add-feature-modal.show {
+    display: flex;
+}
+
+#etim-bulk-feature-select {
+    width: 100%;
+    background-color: #f8fafc !important;
+    border: none !important;
+    border-radius: 99px !important;
+    padding: 10px 40px 10px 20px !important;
+    font-size: 14px !important;
+    color: #334155 !important;
+    height: 42px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+@media (max-width: 768px) {
+    .etim-bulk-wrap {
+        padding: 0 10px;
+    }
+
+    .etim-bulk-title {
+        font-size: 22px;
+    }
+
+    .etim-bulk-shortcode-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .etim-bulk-shortcode-product-name {
+        width: 100%;
+        flex: none;
+    }
+
+    .etim-bulk-product-actions .etim-action-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

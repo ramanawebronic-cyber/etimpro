@@ -46,6 +46,10 @@ class ETIM_Frontend_Filter {
         if (get_option('etim_enable_filter', 'no') !== 'yes') {
             return '';
         }
+        // Feature gating: filter only available for Distributor+ plans
+        if (class_exists('ETIM_Feature_Access') && !ETIM_Feature_Access::get_instance()->can_use_filter()) {
+            return '';
+        }
         ob_start();
         $this->render_filter_ui();
         return ob_get_clean();
@@ -112,7 +116,7 @@ class ETIM_Frontend_Filter {
         if ($current_filter) {
             foreach ($classes as $cls) {
                 if ($cls->class_code === $current_filter) {
-                    $active_class_name = $cls->class_name ?: $cls->class_code;
+                    $active_class_name = $cls->class_code . ' - ' . ($cls->class_name ?: $cls->class_code);
                     break;
                 }
             }
@@ -149,8 +153,8 @@ class ETIM_Frontend_Filter {
                     $is_active = ($current_filter === $cls->class_code);
                     $filter_url = add_query_arg('etim_class', $cls->class_code, remove_query_arg('paged'));
                 ?>
-                <a href="<?php echo esc_url($filter_url); ?>" class="etim-sf-result-item <?php echo $is_active ? 'etim-sf-item-active' : ''; ?>" data-name="<?php echo esc_attr(strtolower($cls->class_name ?: $cls->class_code)); ?>">
-                    <span class="etim-sf-item-name"><?php echo esc_html($cls->class_name ?: $cls->class_code); ?></span>
+                <a href="<?php echo esc_url($filter_url); ?>" class="etim-sf-result-item <?php echo $is_active ? 'etim-sf-item-active' : ''; ?>" data-name="<?php echo esc_attr(strtolower($cls->class_code . ' - ' . ($cls->class_name ?: $cls->class_code))); ?>">
+                    <span class="etim-sf-item-name"><?php echo esc_html($cls->class_code . ' - ' . ($cls->class_name ?: $cls->class_code)); ?></span>
                     <span class="etim-sf-item-count"><?php echo intval($cls->product_count); ?></span>
                 </a>
                 <?php endforeach; ?>
@@ -164,7 +168,7 @@ class ETIM_Frontend_Filter {
             width: 100%;
             max-width: 380px;
             position: relative;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: inherit;
         }
 
         /* Active filter pill */
@@ -179,7 +183,7 @@ class ETIM_Frontend_Filter {
             border: 1px solid #c5dafb;
             border-radius: 8px;
             padding: 8px 12px;
-            font-size: 13px;
+            font-size: 15px;
         }
         .etim-sf-active-icon { flex-shrink: 0; }
         .etim-sf-active-label {
@@ -225,7 +229,7 @@ class ETIM_Frontend_Filter {
         .etim-sf-input {
             width: 100%;
             padding: 12px 90px 12px 42px;
-            font-size: 14px;
+            font-size: 15px;
             color: #334155;
             background: #fff;
             border: 1px solid #e2e8f0;
@@ -278,7 +282,7 @@ class ETIM_Frontend_Filter {
             padding: 10px 14px;
             text-decoration: none;
             color: #334155;
-            font-size: 13px;
+            font-size: 15px;
             border-radius: 7px;
             transition: background 0.15s;
             cursor: pointer;
@@ -304,7 +308,7 @@ class ETIM_Frontend_Filter {
         .etim-sf-item-count {
             background: #f1f5f9;
             color: #64748b;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             padding: 2px 8px;
             border-radius: 10px;
@@ -371,6 +375,10 @@ class ETIM_Frontend_Filter {
     }
 
     public function filter_product_query($q) {
+        // Feature gating: filter only for Distributor+ plans
+        if (class_exists('ETIM_Feature_Access') && !ETIM_Feature_Access::get_instance()->can_use_filter()) {
+            return;
+        }
         if (!is_admin() && $q->is_main_query() && (is_shop() || is_product_category() || is_product_taxonomy())) {
             if (!empty($_GET['etim_class'])) {
                 $class_code = sanitize_text_field($_GET['etim_class']);

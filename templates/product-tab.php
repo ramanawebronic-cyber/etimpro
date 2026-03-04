@@ -18,6 +18,9 @@ if (!defined('ABSPATH')) {
 $current_locale = get_locale();
 $use_swedish = ($current_locale === 'sv_SE');
 
+// Get user-configured color from ETIM settings
+$etim_color = get_option('etim_filter_color', '#475569');
+
 /**
  * Get localized description
  */
@@ -123,7 +126,7 @@ if (!function_exists('etim_get_formatted_value')) {
 
         <div class="etim-class-section etim-premium-card">
             <div class="etim-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#4888E8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -135,6 +138,9 @@ if (!function_exists('etim_get_formatted_value')) {
             <h3 class="etim-class-title">
                 <?php echo esc_html(etim_get_description($class, $use_swedish)); ?>
                 <span class="etim-class-code">(<?php echo esc_html($class['code']); ?>)</span>
+                <span class="etim-info-icon" title="<?php echo esc_attr($class['code']); ?>">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </span>
             </h3>
 
             <?php if (!empty($class['group'])) : ?>
@@ -145,7 +151,26 @@ if (!function_exists('etim_get_formatted_value')) {
                 </p>
             <?php endif; ?>
 
-            <table class="etim-features-table">
+            <?php if (!empty($class['categories'])) : ?>
+                <p class="etim-group-info">
+                    <?php esc_html_e('Categories:', 'etim-for-woocommerce'); ?>
+                    <?php
+                    $cat_names = [];
+                    foreach ($class['categories'] as $cat) {
+                        $cat_names[] = esc_html(etim_get_description($cat, $use_swedish));
+                    }
+                    echo implode(' > ', $cat_names);
+                    ?>
+                    <?php if (!empty($class['categories'])) :
+                        $last_cat = end($class['categories']);
+                        if (!empty($last_cat['code'])) : ?>
+                            <span class="etim-group-code">(<?php echo esc_html($last_cat['code']); ?>)</span>
+                        <?php endif;
+                    endif; ?>
+                </p>
+            <?php endif; ?>
+
+            <table class="etim-features-table" style="--etim-header-color: <?php echo esc_attr($etim_color); ?>;">
                 <thead>
                     <tr>
                         <th class="etim-feature-name"><?php esc_html_e('Feature', 'etim-for-woocommerce'); ?></th>
@@ -171,6 +196,9 @@ if (!function_exists('etim_get_formatted_value')) {
                             <td class="etim-feature-name">
                                 <span class="etim-feature-name-text"><?php echo esc_html(etim_get_description($feature, $use_swedish)); ?></span>
                                 <span class="etim-feature-code-sub">(<?php echo esc_html($feature['code']); ?>)</span>
+                                <span class="etim-info-icon" title="<?php echo esc_attr($feature['code'] . ': ' . etim_get_description($feature, $use_swedish)); ?>">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </span>
                             </td>
                             <td class="etim-feature-value">
                                 <?php echo esc_html(etim_get_formatted_value($feature, $use_swedish)); ?>
@@ -217,10 +245,10 @@ if (!function_exists('etim_get_formatted_value')) {
     margin: 0 0 12px 0 !important;
     padding-bottom: 12px;
     border-bottom: 2px solid #e8edf2;
-    text-align: left;
+    text-align: center;
     display: flex;
-    align-items: baseline;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -231,10 +259,28 @@ if (!function_exists('etim_get_formatted_value')) {
     font-weight: 400;
 }
 
+.etim-info-icon {
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+    vertical-align: middle;
+    position: relative;
+}
+
+.etim-info-icon svg {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.etim-info-icon:hover svg {
+    opacity: 1;
+}
+
 .etim-group-info {
     color: #475569 !important;
     font-size: 0.9em;
-    margin: 0 0 20px 0 !important;
+    margin: 0 0 8px 0 !important;
+    text-align: center;
 }
 
 .etim-group-code {
@@ -246,7 +292,7 @@ if (!function_exists('etim_get_formatted_value')) {
     width: 100%;
     border-collapse: separate !important;
     border-spacing: 0 !important;
-    margin-top: 8px;
+    margin-top: 16px;
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px;
     overflow: hidden;
@@ -255,17 +301,17 @@ if (!function_exists('etim_get_formatted_value')) {
 .etim-features-table th,
 .etim-features-table td {
     padding: 14px 20px !important;
-    text-align: left !important;
+    text-align: center !important;
     font-size: 0.92em;
     vertical-align: middle !important;
     border: none !important;
 }
 
 .etim-features-table th {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e8edf2 100%) !important;
+    background: var(--etim-header-color, #475569) !important;
     font-weight: 700 !important;
-    color: #0f172a !important;
-    border-bottom: 2px solid #e2e8f0 !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid var(--etim-header-color, #475569) !important;
     font-size: 0.85em;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -297,12 +343,16 @@ if (!function_exists('etim_get_formatted_value')) {
 }
 
 .etim-feature-name {
-    width: 48%;
-    border-right: 1px solid #f1f5f9 !important;
+    width: 50%;
+    border-right: 1px solid #e2e8f0 !important;
+}
+
+td.etim-feature-name {
+    position: relative;
 }
 
 .etim-feature-name-text {
-    display: block;
+    display: inline;
     color: #1e293b;
     font-weight: 500;
 }
@@ -312,6 +362,10 @@ if (!function_exists('etim_get_formatted_value')) {
     color: #94a3b8;
     font-size: 0.78em;
     margin-top: 2px;
+}
+
+td.etim-feature-name .etim-info-icon {
+    margin-left: 6px;
 }
 
 td.etim-feature-value {

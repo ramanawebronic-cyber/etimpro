@@ -1179,3 +1179,94 @@
         transform: translateY(0);
     }
 }
+
+/* ===== Product Limit Modal ===== */
+.etim-limit-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: etim-fade-in 0.2s ease;
+}
+.etim-limit-modal-content {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 36px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.etim-limit-modal-icon {
+    width: 64px; height: 64px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.etim-limit-modal-content h3 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.etim-limit-modal-content p {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.6;
+}
+.etim-limit-modal-actions {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.etim-limit-btn-upgrade {
+    display: inline-block;
+    background: #4888E8;
+    color: #fff !important;
+    padding: 12px 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+    border: none;
+    cursor: pointer;
+}
+.etim-limit-btn-upgrade:hover {
+    background: #3874CD;
+    color: #fff !important;
+}
+.etim-limit-btn-close {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px 16px;
+}
+.etim-limit-btn-close:hover {
+    color: #0f172a;
+}
+
+/* ===== Product Limit Warning Banner ===== */
+.etim-limit-warning-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #991b1b;
+    line-height: 1.5;
+}

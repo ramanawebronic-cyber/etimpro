@@ -3,7 +3,7 @@
  * Plugin Name: ETIM for WooCommerce
  * Plugin URI: https://webronic.com
  * Description: ETIM Classification integration for WooCommerce products. Map products with ETIM Groups, Classes, Features, and Values using the official ETIM API.
- * Version: 2.0.0
+ * Version: 3.0.103
  * Author: Webronic
  * Author URI: https://webronic.com
  * Text Domain: etim-for-woocommerce
@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ETIM_WC_VERSION', '3.0.96');
+define('ETIM_WC_VERSION', '3.0.103');
 define('ETIM_WC_PLUGIN_FILE', __FILE__);
 define('ETIM_WC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ETIM_WC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -99,22 +99,26 @@ final class ETIM_For_WooCommerce {
     private function includes() {
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-api.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-license-manager.php';
+        require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-feature-access.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-admin-settings.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-ajax-handler.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-product-meta.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-frontend-filter.php';
+        require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-bulk-handler.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/db/class-etim-db.php';
     }
-    
+
     /**
      * Initialize classes
      */
     private function init_classes() {
         ETIM_License_Manager::get_instance();
+        ETIM_Feature_Access::get_instance();
         ETIM_Admin_Settings::get_instance();
         ETIM_Ajax_Handler::get_instance();
         ETIM_Product_Meta::get_instance();
         ETIM_Frontend_Filter::get_instance();
+        ETIM_Bulk_Handler::get_instance();
     }
     
     /**
@@ -211,10 +215,22 @@ function etim_save_data_callback() {
         wp_send_json_error(['message' => 'Invalid product ID']);
     }
 
+    // Feature gating: check product assignment limit
+    $feature_access = ETIM_Feature_Access::get_instance();
+    if (!$feature_access->can_assign_product($product_id)) {
+        $limit = $feature_access->get_product_limit();
+        $count = $feature_access->get_assigned_product_count();
+        wp_send_json_error([
+            'message'       => sprintf('Product limit reached (%d/%d). Upgrade your plan to assign ETIM data to more products.', $count, $limit),
+            'error_type'    => 'product_limit_reached',
+            'current_count' => $count,
+            'max_allowed'   => $limit,
+            'upgrade_url'   => $feature_access->get_upgrade_url(),
+        ]);
+    }
+
     // 3️⃣ Get JSON
     $json = $_POST['etim_data_json'] ?? '';
-
-    error_log("ETIM RAW JSON: " . $json);
 
     $etim_data = json_decode(stripslashes($json), true);
 
@@ -291,9 +307,9 @@ function webronic_init_update_checker() {
 
     // Build the update checker using full namespace path
     $updateChecker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-        'https://github.com/webronic/360-maptour-wordpress-plugin',
+        'https://github.com/webronic/wordpress_etim_sale',
         __FILE__,
-        '360-maptour-wordpress-plugin'
+        'wordpress_etim_sale'
     );
 
     // Set to use releases (recommended for GitHub)
@@ -399,6 +415,9 @@ add_action('wp_head', function () {
     if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
         return;
     }
+    if (class_exists('ETIM_Feature_Access') && !ETIM_Feature_Access::get_instance()->can_use_filter()) {
+        return;
+    }
 
     ?>
     <style>
@@ -443,6 +462,9 @@ add_action('woocommerce_before_shop_loop', function () {
     if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
         return;
     }
+    if (class_exists('ETIM_Feature_Access') && !ETIM_Feature_Access::get_instance()->can_use_filter()) {
+        return;
+    }
 
     echo '<div class="etim-archive-wrapper">';
     echo '<div class="etim-sidebar">';
@@ -456,6 +478,9 @@ add_action('woocommerce_before_shop_loop', function () {
 add_action('woocommerce_after_shop_loop', function () {
 
     if (!is_product_category() || get_option('etim_enable_filter', 'no') !== 'yes') {
+        return;
+    }
+    if (class_exists('ETIM_Feature_Access') && !ETIM_Feature_Access::get_instance()->can_use_filter()) {
         return;
     }
 

@@ -64,6 +64,20 @@ public function save_product_data() {
         ]);
     }
 
+    // Feature gating: check product assignment limit
+    $feature_access = ETIM_Feature_Access::get_instance();
+    if (!$feature_access->can_assign_product($product_id)) {
+        $limit = $feature_access->get_product_limit();
+        $count = $feature_access->get_assigned_product_count();
+        wp_send_json_error([
+            'message'       => sprintf('Product limit reached (%d/%d). Upgrade your plan to assign ETIM data to more products.', $count, $limit),
+            'error_type'    => 'product_limit_reached',
+            'current_count' => $count,
+            'max_allowed'   => $limit,
+            'upgrade_url'   => $feature_access->get_upgrade_url(),
+        ]);
+    }
+
     $etim_data = json_decode(stripslashes($json), true);
 
     if (!is_array($etim_data)) {

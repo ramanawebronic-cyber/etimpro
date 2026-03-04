@@ -106,10 +106,12 @@ class ETIM_Product_Meta {
             true
         );
         
+    $fa = ETIM_Feature_Access::get_instance();
     wp_localize_script('etim-product-meta', 'etimProductMeta', [
         'ajaxUrl'   => admin_url('admin-ajax.php'),
         'nonce'     => wp_create_nonce('etim_ajax_nonce'),
-          'productId' => get_the_ID(), // ✅ must be this
+        'productId' => get_the_ID(),
+        'featureAccess' => $fa->get_js_data(get_the_ID()),
         'strings'   => [
             'selectGroup'         => __('Select an ETIM Group...', 'etim-for-woocommerce'),
             'selectClass'         => __('Select an ETIM Class...', 'etim-for-woocommerce'),

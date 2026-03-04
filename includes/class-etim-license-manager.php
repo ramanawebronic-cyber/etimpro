@@ -13,8 +13,7 @@ class ETIM_License_Manager {
     /**
      * License API configuration
      */
-    private $api_url;
-    private $secret_key = '69a5869269b1b3.09401983';
+    private $secret_key = '69a6cf32a9baf7.29427578';
     private $product_reference = 'etim-for-woocommerce';
 
     /**
@@ -54,10 +53,51 @@ class ETIM_License_Manager {
      * Constructor
      */
     private function __construct() {
-        // Set API URL to the WordPress site URL where SLM is installed
-        $this->api_url = home_url('/');
         $this->init_hooks();
         add_action('admin_init', [$this, 'check_and_deactivate_expired_license'], 1);
+        add_action('admin_init', [$this, 'refresh_plan_status'], 2);
+        // Also refresh plan status on frontend pages so product reference changes
+        // are detected immediately when a user purchases a new plan
+        add_action('init', [$this, 'refresh_plan_status'], 20);
+    }
+
+    /**
+     * Refresh plan status on every page load (admin + frontend)
+     * Re-reads the product reference from the license database to detect plan changes
+     * when a user activates a new license key for a different plan.
+     */
+    public function refresh_plan_status() {
+        // Prevent running multiple times per request
+        static $already_refreshed = false;
+        if ($already_refreshed) {
+            return;
+        }
+        $already_refreshed = true;
+
+        $license_key = $this->get_stored_license();
+        if (empty($license_key)) {
+            $this->set_plan_status(self::PLAN_FREE);
+            return;
+        }
+
+        $status = get_option('etim_lic_status', 'invalid');
+        if ($status !== 'valid') {
+            $this->set_plan_status(self::PLAN_FREE);
+            return;
+        }
+
+        // Re-read product reference from SLM database to detect plan changes
+        $check_data = $this->slm_check_direct($license_key);
+        if (isset($check_data['result']) && $check_data['result'] === 'success' && !empty($check_data['product_ref'])) {
+            $current_ref = get_option('etim_actual_product_ref', '');
+            $new_ref = sanitize_text_field($check_data['product_ref']);
+            if ($current_ref !== $new_ref) {
+                update_option('etim_actual_product_ref', $new_ref);
+            }
+        }
+
+        $detected_plan = $this->detect_plan_from_product_reference();
+        $this->set_plan_status($detected_plan);
     }
 
     /**
@@ -193,25 +233,11 @@ class ETIM_License_Manager {
     }
 
     /**
-     * Notify API about deactivation (non-blocking)
+     * Notify SLM about deactivation (direct DB)
      */
     private function notify_api_deactivation($license_key) {
         $domain = $this->get_domain();
-
-        $api_params = [
-            'slm_action'        => 'slm_deactivate',
-            'secret_key'        => $this->secret_key,
-            'license_key'       => $license_key,
-            'registered_domain' => $domain,
-            'item_reference'    => $this->product_reference,
-        ];
-
-        wp_remote_post($this->api_url, [
-            'timeout'   => 5,
-            'blocking'  => false,
-            'body'      => $api_params,
-            'sslverify' => false,
-        ]);
+        $this->slm_deactivate_direct($license_key, $domain);
     }
 
     // ========================================================================
@@ -371,44 +397,20 @@ class ETIM_License_Manager {
     // ========================================================================
 
     /**
-     * Remote license check
+     * License check via direct SLM database query (avoids loopback HTTP timeout)
      */
     private function remote_check($license_key) {
         if (empty($license_key)) {
             return ['status' => 'invalid', 'message' => 'No license key provided'];
         }
 
-        $domain = $this->get_domain();
-
-        $api_params = [
-            'slm_action'        => 'slm_check',
-            'secret_key'        => $this->secret_key,
-            'license_key'       => $license_key,
-            'registered_domain' => $domain,
-            'item_reference'    => $this->product_reference,
-        ];
-
-        $response = wp_remote_post($this->api_url, [
-            'timeout'   => 15,
-            'body'      => $api_params,
-            'sslverify' => false,
-        ]);
-
-        if (is_wp_error($response)) {
-            return [
-                'status'  => 'error',
-                'message' => $response->get_error_message(),
-            ];
-        }
-
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
+        $data = $this->slm_check_direct($license_key);
 
         if (!empty($data['product_ref'])) {
             update_option('etim_actual_product_ref', sanitize_text_field($data['product_ref']));
         }
 
-        return $data ? $data : ['status' => 'invalid', 'message' => 'Invalid response'];
+        return $data;
     }
 
     // ========================================================================
@@ -505,7 +507,7 @@ class ETIM_License_Manager {
     // ========================================================================
 
     /**
-     * Activate license
+     * Activate license via direct SLM database query
      */
     public function activate($license_key) {
         $license_key = trim($license_key);
@@ -517,29 +519,14 @@ class ETIM_License_Manager {
         $domain = $this->get_domain();
 
         // Pre-activation check for expiry
-        $check_params = [
-            'slm_action'        => 'slm_check',
-            'secret_key'        => $this->secret_key,
-            'license_key'       => $license_key,
-            'registered_domain' => $domain,
-            'item_reference'    => $this->product_reference,
-        ];
+        $check_data = $this->slm_check_direct($license_key);
 
-        $check_response = wp_remote_post($this->api_url, [
-            'timeout'   => 15,
-            'body'      => $check_params,
-            'sslverify' => false,
-        ]);
-
-        if (!is_wp_error($check_response)) {
-            $check_body = wp_remote_retrieve_body($check_response);
-            $check_data = json_decode($check_body, true);
-
+        if ($check_data['result'] === 'success') {
             if (!empty($check_data['product_ref'])) {
                 update_option('etim_actual_product_ref', sanitize_text_field($check_data['product_ref']));
             }
 
-            if (isset($check_data['date_expiry']) && !empty($check_data['date_expiry'])) {
+            if (!empty($check_data['date_expiry'])) {
                 $expiry_date = $check_data['date_expiry'];
                 if ($this->is_date_expired($expiry_date)) {
                     return new WP_Error(
@@ -550,61 +537,29 @@ class ETIM_License_Manager {
             }
         }
 
-        // Activate
-        $api_params = [
-            'slm_action'        => 'slm_activate',
-            'secret_key'        => $this->secret_key,
-            'license_key'       => $license_key,
-            'registered_domain' => $domain,
-            'item_reference'    => $this->product_reference,
-        ];
-
-        $response = wp_remote_post($this->api_url, [
-            'timeout'   => 15,
-            'body'      => $api_params,
-            'sslverify' => false,
-        ]);
-
-        if (is_wp_error($response)) {
-            error_log('ETIM License: Activation HTTP error - ' . $response->get_error_message());
-            return new WP_Error('connection_error', 'Could not connect to license server: ' . $response->get_error_message());
-        }
-
-        $http_code = wp_remote_retrieve_response_code($response);
-        $body = wp_remote_retrieve_body($response);
-
-        if ($http_code !== 200) {
-            error_log('ETIM License: Activation returned HTTP ' . $http_code . ' - Body: ' . $body);
-            return new WP_Error('http_error', 'License server returned HTTP ' . $http_code);
-        }
-
-        $data = json_decode($body, true);
-
-        if (!$data || !isset($data['result'])) {
-            error_log('ETIM License: Invalid response body - ' . $body);
-            return new WP_Error('invalid_response', 'Invalid response from license server. Please check your license key and try again.');
-        }
+        // Activate via direct DB
+        $data = $this->slm_activate_direct($license_key, $domain);
 
         if ($data['result'] === 'success') {
-            if (!empty($data['product_ref'])) {
-                update_option('etim_actual_product_ref', sanitize_text_field($data['product_ref']));
+            if (!empty($check_data['product_ref'])) {
+                update_option('etim_actual_product_ref', sanitize_text_field($check_data['product_ref']));
             }
 
             $this->store_license($license_key, 'valid');
 
-            if (isset($data['date_expiry'])) {
-                update_option('etim_lic_expiry', $data['date_expiry']);
+            if (!empty($check_data['date_expiry'])) {
+                update_option('etim_lic_expiry', $check_data['date_expiry']);
             }
 
             return true;
         }
 
-        // Handle "already activated" as success - domain may already be registered
+        // Handle "already in use" on this domain as success
         if (isset($data['message']) && strpos(strtolower($data['message']), 'already') !== false) {
             $this->store_license($license_key, 'valid');
 
-            if (isset($data['date_expiry'])) {
-                update_option('etim_lic_expiry', $data['date_expiry']);
+            if (!empty($check_data['date_expiry'])) {
+                update_option('etim_lic_expiry', $check_data['date_expiry']);
             }
 
             return true;
@@ -616,7 +571,7 @@ class ETIM_License_Manager {
     }
 
     /**
-     * Deactivate license
+     * Deactivate license via direct SLM database query
      */
     public function deactivate() {
         $license_key = $this->get_stored_license();
@@ -626,21 +581,7 @@ class ETIM_License_Manager {
         }
 
         $domain = $this->get_domain();
-
-        $api_params = [
-            'slm_action'        => 'slm_deactivate',
-            'secret_key'        => $this->secret_key,
-            'license_key'       => $license_key,
-            'registered_domain' => $domain,
-            'item_reference'    => $this->product_reference,
-        ];
-
-        wp_remote_post($this->api_url, [
-            'timeout'   => 15,
-            'body'      => $api_params,
-            'sslverify' => false,
-        ]);
-
+        $this->slm_deactivate_direct($license_key, $domain);
         $this->clear_license();
 
         return true;
@@ -716,7 +657,7 @@ class ETIM_License_Manager {
         }
         $ref = strtolower(trim($ref));
 
-        if (strpos($ref, 'erp') !== false) {
+        if (strpos($ref, 'erp') !== false || strpos($ref, 'agency') !== false) {
             return self::PLAN_ERP;
         }
         if (strpos($ref, 'distributor') !== false || strpos($ref, 'wholesale') !== false) {
@@ -753,7 +694,7 @@ class ETIM_License_Manager {
     private function get_plan_name_by_code($code) {
         switch ((int) $code) {
             case self::PLAN_ERP:
-                return 'ERP';
+                return 'WooCommerce Agency';
             case self::PLAN_DISTRIBUTOR:
                 return 'Distributor';
             case self::PLAN_MANUFACTURER:
@@ -790,5 +731,147 @@ class ETIM_License_Manager {
             echo '<a href="' . esc_url(admin_url('admin.php?page=etim-settings#tab-license')) . '" style="font-weight:600;">Renew License Now</a></p>';
             echo '</div>';
         }
+    }
+
+    // ========================================================================
+    // DIRECT SLM DATABASE QUERIES (avoids loopback HTTP timeout)
+    // ========================================================================
+
+    /**
+     * Verify SLM secret key matches the one stored in SLM plugin options
+     */
+    private function verify_slm_secret_key() {
+        $slm_options = get_option('slm_plugin_options', []);
+        $right_key   = isset($slm_options['lic_verification_secret']) ? $slm_options['lic_verification_secret'] : '';
+        return ($this->secret_key === $right_key);
+    }
+
+    /**
+     * Direct SLM check - queries the SLM database tables directly
+     */
+    private function slm_check_direct($license_key) {
+        global $wpdb;
+
+        if (!$this->verify_slm_secret_key()) {
+            return ['result' => 'error', 'message' => 'Verification API secret key is invalid'];
+        }
+
+        $tbl_keys    = $wpdb->prefix . 'lic_key_tbl';
+        $tbl_domains = $wpdb->prefix . 'lic_reg_domain_tbl';
+
+        $license = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $tbl_keys WHERE license_key = %s", $license_key)
+        );
+
+        if (!$license) {
+            return ['result' => 'error', 'message' => 'Invalid license key'];
+        }
+
+        $reg_domains = $wpdb->get_results(
+            $wpdb->prepare("SELECT * FROM $tbl_domains WHERE lic_key = %s", $license_key)
+        );
+
+        return [
+            'result'              => 'success',
+            'message'             => 'License key details retrieved.',
+            'license_key'         => $license->license_key,
+            'status'              => $license->lic_status,
+            'max_allowed_domains' => $license->max_allowed_domains,
+            'email'               => $license->email,
+            'registered_domains'  => $reg_domains,
+            'date_created'        => $license->date_created,
+            'date_renewed'        => $license->date_renewed,
+            'date_expiry'         => $license->date_expiry,
+            'date'                => date('Y-m-d'),
+            'product_ref'         => $license->product_ref,
+            'first_name'          => $license->first_name,
+            'last_name'           => $license->last_name,
+            'company_name'        => $license->company_name,
+            'txn_id'              => $license->txn_id,
+        ];
+    }
+
+    /**
+     * Direct SLM activate - registers domain in SLM database
+     */
+    private function slm_activate_direct($license_key, $domain) {
+        global $wpdb;
+
+        if (!$this->verify_slm_secret_key()) {
+            return ['result' => 'error', 'message' => 'Verification API secret key is invalid'];
+        }
+
+        $tbl_keys    = $wpdb->prefix . 'lic_key_tbl';
+        $tbl_domains = $wpdb->prefix . 'lic_reg_domain_tbl';
+
+        $license = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $tbl_keys WHERE license_key = %s", $license_key)
+        );
+
+        if (!$license) {
+            return ['result' => 'error', 'message' => 'Invalid license key'];
+        }
+
+        if ($license->lic_status === 'blocked') {
+            return ['result' => 'error', 'message' => 'Your License key is blocked'];
+        }
+
+        if ($license->lic_status === 'expired') {
+            return ['result' => 'error', 'message' => 'Your License key has expired'];
+        }
+
+        $reg_domains = $wpdb->get_results(
+            $wpdb->prepare("SELECT * FROM $tbl_domains WHERE lic_key = %s", $license_key)
+        );
+
+        // Check if domain is already registered
+        foreach ($reg_domains as $reg_domain) {
+            if ($domain === $reg_domain->registered_domain) {
+                return ['result' => 'error', 'message' => 'License key already in use on ' . $domain];
+            }
+        }
+
+        // Check max domains
+        if (count($reg_domains) >= floor($license->max_allowed_domains)) {
+            return ['result' => 'error', 'message' => 'Reached maximum allowable domains'];
+        }
+
+        // Register the domain
+        $wpdb->insert($tbl_domains, [
+            'lic_key_id'        => $license->id,
+            'lic_key'           => $license_key,
+            'registered_domain' => $domain,
+            'item_reference'    => $this->product_reference,
+        ]);
+
+        // Insert into permanent history table if it exists
+        $tbl_permanent = $wpdb->prefix . 'lic_reg_domain_tbl_permanent';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$tbl_permanent'") === $tbl_permanent) {
+            $wpdb->insert($tbl_permanent, [
+                'lic_key_id'        => $license->id,
+                'lic_key'           => $license_key,
+                'registered_domain' => $domain,
+                'item_reference'    => $this->product_reference,
+            ]);
+        }
+
+        // Update license status to active
+        $wpdb->update($tbl_keys, ['lic_status' => 'active'], ['id' => $license->id]);
+
+        return ['result' => 'success', 'message' => 'License key activated'];
+    }
+
+    /**
+     * Direct SLM deactivate - removes domain from SLM database
+     */
+    private function slm_deactivate_direct($license_key, $domain) {
+        global $wpdb;
+
+        $tbl_domains = $wpdb->prefix . 'lic_reg_domain_tbl';
+
+        $wpdb->delete($tbl_domains, [
+            'lic_key'           => $license_key,
+            'registered_domain' => $domain,
+        ], ['%s', '%s']);
     }
 }

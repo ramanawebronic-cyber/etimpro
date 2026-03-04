@@ -190,6 +190,7 @@ class ETIM_Admin_Settings {
             true
         );
         
+        $fa = ETIM_Feature_Access::get_instance();
         wp_localize_script('etim-admin-settings', 'etimSettings', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('etim_admin_nonce'),
@@ -199,6 +200,7 @@ class ETIM_Admin_Settings {
                 'error'      => __('Connection failed:', 'etim-for-woocommerce'),
                 'saveFirst'  => __('Please save your credentials first.', 'etim-for-woocommerce'),
             ],
+            'featureAccess' => $fa->get_js_data(),
         ]);
     }
     
@@ -212,6 +214,14 @@ class ETIM_Admin_Settings {
         }
         
         $assets_url = ETIM_WC_PLUGIN_URL . 'assets/images/';
+
+        // Feature access for gating
+        $feature_access = ETIM_Feature_Access::get_instance();
+        $can_filter = $feature_access->can_use_filter();
+        $can_import = $feature_access->can_import();
+        $can_export = $feature_access->can_export();
+        $can_download_json = $feature_access->can_download_json();
+
         $client_id = get_option(self::OPTION_CLIENT_ID, '');
         $api_key = get_option(self::OPTION_CLIENT_SECRET, '');
         $masked_key = '';
@@ -444,10 +454,17 @@ class ETIM_Admin_Settings {
                                                 Product <span style="font-weight: 500;">"<?php echo esc_html($product_name); ?>"</span> (ID: <?php echo intval($mapping->product_id); ?>) 
                                                 mapped directly to class <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-family: monospace; font-size: 11px;"><?php echo esc_html($mapping->class_code); ?></span>
                                             </div>
+                                            <?php if ($can_download_json): ?>
                                             <a href="<?php echo esc_attr($data_uri); ?>" download="etim_mapping_product_<?php echo intval($mapping->product_id); ?>.json" class="etim-btn-blue-outline" style="padding: 4px 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; text-decoration: none;">
                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                                 Download JSON
                                             </a>
+                                            <?php else: ?>
+                                            <span class="etim-btn-blue-outline" style="padding: 4px 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; opacity:0.5; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                                                <span class="etim-pro-badge">PRO</span>
+                                            </span>
+                                            <?php endif; ?>
                                         </li>
                                         <?php
                                     }
@@ -506,52 +523,74 @@ class ETIM_Admin_Settings {
                             </div>
 
                             <!-- Filter -->
-                            <div class="etim-f-row etim-flex-row">
+                            <div class="etim-f-row etim-flex-row <?php echo !$can_filter ? 'etim-pro-locked' : ''; ?>">
                                 <div class="etim-f-left">
-                                    <label>Filter</label>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                        <label style="margin: 0;">Filter</label>
+                                        <?php if (!$can_filter): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                    </div>
                                     <p>Enable faceted filtering for mapped ETIM classes on your store frontend.</p>
                                 </div>
-                                <div class="etim-f-right" style="justify-content: flex-end; display: flex; align-items: center;">
+                                <div class="etim-f-right" style="justify-content: flex-end; display: flex; align-items: center; gap: 8px;">
                                     <label class="etim-switch" style="margin-right: 15px;">
                                         <input type="hidden" name="<?php echo esc_attr(self::OPTION_ENABLE_FILTER); ?>" value="no">
-                                        <input type="checkbox" name="<?php echo esc_attr(self::OPTION_ENABLE_FILTER); ?>" value="yes" <?php checked(get_option(self::OPTION_ENABLE_FILTER, 'no'), 'yes'); ?>>
+                                        <input type="checkbox" name="<?php echo esc_attr(self::OPTION_ENABLE_FILTER); ?>" value="yes" <?php checked(get_option(self::OPTION_ENABLE_FILTER, 'no'), 'yes'); ?> <?php echo !$can_filter ? 'disabled' : ''; ?>>
                                         <span class="slider"></span>
                                     </label>
-                                    <input type="color" title="Filter Highlight Color" name="<?php echo esc_attr(self::OPTION_FILTER_COLOR); ?>" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" style="width: 40px; height: 35px; padding: 0; cursor: pointer; border: none; background: transparent; border-radius: 4px;" />
+                                    <input type="text" id="etim-filter-color-text" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" placeholder="#147A74" style="width: 90px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 8px; font-family: monospace;" <?php echo !$can_filter ? 'disabled' : ''; ?> />
+                                    <input type="color" id="etim-filter-color-picker" title="Filter Highlight Color" name="<?php echo esc_attr(self::OPTION_FILTER_COLOR); ?>" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" style="width: 36px; height: 36px; padding: 0; cursor: pointer; border: none; background: transparent; border-radius: 50%; clip-path: circle(50%);" <?php echo !$can_filter ? 'disabled' : ''; ?> />
                                 </div>
                             </div>
 
                             <!-- Data Sheet Mock -->
                             <div class="etim-f-row etim-flex-row">
                                 <div class="etim-f-left">
-                                    <label>Data Sheet</label>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                        <label style="margin: 0;">Data Sheet</label>
+                                        <span style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;">Upcoming</span>
+                                    </div>
                                     <p>Generate downloadable PDF data sheets for all your categorized products.</p>
                                 </div>
                                 <div class="etim-f-right" style="justify-content: flex-end;">
-                                    <label class="etim-switch"><input type="checkbox"><span class="slider"></span></label>
+                                    <label class="etim-switch" style="opacity: 0.5; cursor: not-allowed;"><input type="checkbox" disabled><span class="slider" style="cursor: not-allowed;"></span></label>
                                 </div>
                             </div>
                             
                             <!-- Import Data -->
-                            <div class="etim-f-row etim-flex-row">
+                            <div class="etim-f-row etim-flex-row <?php echo !$can_import ? 'etim-pro-locked' : ''; ?>">
                                 <div class="etim-f-left">
-                                    <label>Import Data</label>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                        <label style="margin: 0;">Import Data</label>
+                                        <?php if (!$can_import): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                    </div>
                                     <p>Upload a structured CSV file to bulk assign ETIM classes and features to products.</p>
                                 </div>
                                 <div class="etim-f-right" style="justify-content: flex-end;">
+                                    <?php if ($can_import): ?>
                                     <button type="button" class="etim-btn-blue-outline etim-w-auto" onclick="document.getElementById('real-import-file').click();">Upload CSV File</button>
+                                    <?php else: ?>
+                                    <button type="button" class="etim-btn-blue-outline etim-w-auto" disabled style="opacity:0.5;cursor:not-allowed;">Upload CSV File</button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
-                            
+
                             <!-- Export Data -->
-                            <div class="etim-f-row etim-flex-row">
+                            <div class="etim-f-row etim-flex-row <?php echo !$can_export ? 'etim-pro-locked' : ''; ?>">
                                 <div class="etim-f-left">
-                                    <label>Export Data</label>
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                        <label style="margin: 0;">Export Data</label>
+                                        <?php if (!$can_export): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                    </div>
                                     <p>Download assigned ETIM product configurations to CSV or XML format.</p>
                                 </div>
                                 <div class="etim-f-right" style="justify-content: flex-end; gap: 8px; display: flex; flex-wrap: wrap;">
+                                    <?php if ($can_export): ?>
                                     <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_simple_export')); ?>" class="etim-btn-blue etim-w-auto" style="text-decoration:none;">Download CSV</a>
                                     <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_xml_export_all')); ?>" class="etim-btn-blue-outline etim-w-auto" style="text-decoration:none;">Download XML</a>
+                                    <?php else: ?>
+                                    <span class="etim-btn-blue etim-w-auto" style="opacity:0.5;cursor:not-allowed;">Download CSV</span>
+                                    <span class="etim-btn-blue-outline etim-w-auto" style="opacity:0.5;cursor:not-allowed;">Download XML</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -594,47 +633,81 @@ class ETIM_Admin_Settings {
                     $lic_info = $license_manager->get_license_info();
                     $is_active = ($lic_info['status'] === 'active');
                     $current_plan = $is_active ? $lic_info['plan_name'] : 'Free';
+                    $plan_code = $feature_access->get_current_plan();
+                    $product_count = $feature_access->get_assigned_product_count();
+                    $product_limit = $feature_access->get_product_limit();
+                    $product_limit_display = ($product_limit === PHP_INT_MAX) ? '&infin;' : number_format_i18n($product_limit);
+                    $product_pct = ($product_limit !== PHP_INT_MAX && $product_limit > 0) ? min(100, round(($product_count / $product_limit) * 100)) : 0;
+                    $features_list = $feature_access->get_plan_features_list();
+                    $is_auto_expired = get_option('etim_lic_auto_expired', false);
                     ?>
+
+                    <!-- Header -->
                     <div class="etim-lk-header">
                         <div class="etim-lk-header-icon">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <div>
+                        <div style="flex:1;">
                             <h2 class="etim-lk-title">License Key</h2>
                             <p class="etim-lk-subtitle">Activate your License and Manage your ETIM Subscription</p>
+                        </div>
+                        <div>
+                            <?php if ($is_active): ?>
+                                <span class="etim-lk-status-pill etim-lk-status-active">Active</span>
+                            <?php elseif ($is_auto_expired): ?>
+                                <span class="etim-lk-status-pill etim-lk-status-expired">Expired</span>
+                            <?php else: ?>
+                                <span class="etim-lk-status-pill etim-lk-status-free">Free</span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
                     <?php if ($is_active): ?>
                     <!-- Active License Details -->
-                    <div class="etim-lk-card">
-                        <div class="etim-lk-card-header">
-                            <div>
-                                <h3 class="etim-lk-card-title">License Active</h3>
-                                <p class="etim-lk-card-desc">Plan: <?php echo esc_html($lic_info['plan_name']); ?> &middot; Expires: <?php echo esc_html($lic_info['expiry_formatted']); ?></p>
+                    <div class="etim-lk-card" style="background: linear-gradient(145deg, #ffffff, #f8fafc); border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                        <div class="etim-lk-card-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div style="background: #e0e7ff; padding: 12px; border-radius: 12px;">
+                                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="etim-lk-card-title" style="font-size: 20px; color: #1e293b; margin-bottom: 4px;"><?php echo esc_html($lic_info['plan_name']); ?> Plan</h3>
+                                    <p class="etim-lk-card-desc" style="margin: 0;">Valid until <?php echo esc_html($lic_info['expiry_formatted']); ?></p>
+                                </div>
                             </div>
-                            <span class="etim-lk-status-pill">Active</span>
+                            <span class="etim-lk-status-pill etim-lk-status-active" style="background: #10b981; color: white;">Active</span>
                         </div>
-                        <div class="etim-lk-detail-grid">
-                            <div class="etim-lk-detail-item">
+
+                        <div class="etim-lk-detail-grid" style="gap: 20px;">
+                            <div class="etim-lk-detail-item" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
                                 <span class="etim-lk-detail-label">License Key</span>
-                                <span class="etim-lk-detail-value" id="etim-lic-masked-key"><?php echo esc_html($lic_info['masked_key']); ?></span>
+                                <span class="etim-lk-detail-value" id="etim-lic-masked-key" style="font-family: monospace; color: #4888E8; font-size: 16px;"><?php echo esc_html($lic_info['masked_key']); ?></span>
                             </div>
-                            <div class="etim-lk-detail-item">
-                                <span class="etim-lk-detail-label">Plan</span>
-                                <span class="etim-lk-detail-value" id="etim-lic-plan"><?php echo esc_html($lic_info['plan_name']); ?></span>
-                            </div>
-                            <div class="etim-lk-detail-item">
-                                <span class="etim-lk-detail-label">Expires</span>
-                                <span class="etim-lk-detail-value" id="etim-lic-expiry"><?php echo esc_html($lic_info['expiry_formatted']); ?></span>
-                            </div>
-                            <div class="etim-lk-detail-item">
-                                <span class="etim-lk-detail-label">Domain</span>
-                                <span class="etim-lk-detail-value" id="etim-lic-domain"><?php echo esc_html($lic_info['domain']); ?></span>
+                            <div class="etim-lk-detail-item" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                                <span class="etim-lk-detail-label">Status</span>
+                                <span class="etim-lk-detail-value" style="color:#10b981;font-weight:700; font-size: 16px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10" stroke="#10b981" stroke-width="2"/><path d="M8 12l3 3 5-5" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    Active
+                                </span>
                             </div>
                         </div>
-                        <div style="margin-top:20px;">
-                            <button type="button" class="etim-btn-danger" id="etim-deactivate-license">
+
+                        <!-- Product Usage -->
+                        <div style="margin-top:24px;padding: 24px;background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <span style="font-size:14px;font-weight:700;color:#1e293b;">Product Usage</span>
+                                <span style="font-size:14px;font-weight:700;color:#475569;"><?php echo number_format_i18n($product_count); ?> <span style="font-weight:400; color:#94a3b8;">/ <?php echo $product_limit_display; ?></span></span>
+                            </div>
+                            <div class="etim-pi-bar" style="height:10px; background: #e2e8f0; border-radius: 5px;">
+                                <div class="etim-pi-fill" style="width:<?php echo esc_attr($product_pct); ?>%; border-radius: 5px; background: <?php echo $product_pct >= 90 ? '#ef4444' : 'linear-gradient(90deg, #4888E8, #3b82f6)'; ?>;"></div>
+                            </div>
+                            <?php if ($product_limit !== PHP_INT_MAX && $product_pct >= 80): ?>
+                            <p style="margin:12px 0 0;font-size:13px;color:#ef4444; font-weight: 500;">You're approaching your product limit. <a href="<?php echo esc_url($feature_access->get_upgrade_url()); ?>" target="_blank" style="color:#4888E8;text-decoration:underline;">Upgrade</a> for more capacity.</p>
+                            <?php endif; ?>
+                        </div>
+
+                        <div style="margin-top:24px; text-align: right;">
+                            <button type="button" class="etim-btn-danger" id="etim-deactivate-license" style="background: transparent;">
                                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style="margin-right:6px;"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                                 Deactivate License
                             </button>
@@ -644,7 +717,7 @@ class ETIM_Admin_Settings {
                     <!-- Activation Form -->
                     <div class="etim-lk-card">
                         <h3 class="etim-lk-card-title">Enter Your License Key</h3>
-                        <p class="etim-lk-card-desc">Enter your License Key below to Activate the Plugin and Unlock all ETIM Features</p>
+                        <p class="etim-lk-card-desc">Enter your License Key below to Activate the Plugin and Unlock ETIM Features</p>
                         <div class="etim-lk-input-row">
                             <input type="text" id="etim-license-key-input" class="etim-lk-input" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" />
                         </div>
@@ -652,84 +725,131 @@ class ETIM_Admin_Settings {
                             <button type="button" class="etim-lk-btn-activate" id="etim-activate-license">Activate License</button>
                         </div>
                         <div id="etim-lic-message" class="etim-lic-message" style="display:none;"></div>
+
+                        <?php if (!$is_active): ?>
+                        <!-- Free plan product usage -->
+                        <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                <span style="font-size:13px;font-weight:600;color:#0f172a;">Product Usage (Free Plan)</span>
+                                <span style="font-size:13px;font-weight:600;color:#475569;"><?php echo number_format_i18n($product_count); ?> / <?php echo $product_limit_display; ?></span>
+                            </div>
+                            <div class="etim-pi-bar" style="height:8px;">
+                                <div class="etim-pi-fill" style="width:<?php echo esc_attr($product_pct); ?>%;<?php echo $product_pct >= 90 ? 'background:#ef4444;' : ''; ?>"></div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
+
+                    <!-- Feature Access Table -->
+                    <div class="etim-lk-card" style="margin-bottom:28px;">
+                        <h3 class="etim-lk-card-title" style="margin-bottom:20px; font-size: 18px;">Your Plan Features</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                            <?php foreach ($features_list as $feature): ?>
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid <?php echo $feature['included'] ? '#bfdbfe' : '#e2e8f0'; ?>; border-radius: 8px; background: <?php echo $feature['included'] ? '#eff6ff' : '#f8fafc'; ?>;">
+                                <span style="font-size: 14px; font-weight: 600; color: <?php echo $feature['included'] ? '#1e3a8a' : '#64748b'; ?>;"><?php echo esc_html($feature['name']); ?></span>
+                                <div>
+                                    <?php if ($feature['included']): ?>
+                                        <?php if (isset($feature['value'])): ?>
+                                            <span style="background: #4888E8; color: white; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12px;"><?php echo esc_html($feature['value']); ?></span>
+                                        <?php else: ?>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#4888E8"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <?php if (isset($feature['value'])): ?>
+                                            <span style="color:#94a3b8;font-weight:600;font-size:13px;"><?php echo esc_html($feature['value']); ?></span>
+                                        <?php else: ?>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#e2e8f0"/><rect x="5" y="11" width="14" height="11" rx="2" fill="#94a3b8" transform="scale(0.6) translate(7.5, 2)"/><path d="M9.5 11V9a2.5 2.5 0 015 0v2" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/></svg>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
                     <!-- Available Plans -->
                     <div class="etim-lk-plans-section">
                         <h3 class="etim-lk-plans-title">Available Plans</h3>
                         <p class="etim-lk-plans-subtitle">Choose the plan that best fits your ETIM integration needs</p>
                         <div class="etim-lk-plans-grid">
-                            <!-- Free Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($current_plan === 'Free') ? 'etim-lk-plan-active' : ''; ?>">
+                            <!-- Manufacturer Plan -->
+                            <div class="etim-lk-plan-card <?php echo ($plan_code <= ETIM_License_Manager::PLAN_MANUFACTURER && !$is_active) || ($is_active && $plan_code === ETIM_License_Manager::PLAN_MANUFACTURER) ? 'etim-lk-plan-active' : ''; ?>">
                                 <div class="etim-lk-plan-top">
                                     <img src="<?php echo esc_url($assets_url . 'free.png'); ?>" alt="Manufacturer" class="etim-lk-plan-img" />
                                     <h4 class="etim-lk-plan-name">Manufacturer</h4>
                                     <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">299$</span>
+                                        <span class="etim-lk-price-amount">$299</span>
+                                        <span class="etim-lk-price-period">/year</span>
                                     </div>
-                                    <p class="etim-lk-plan-desc">Perfect for individuals and small businesses getting started with ETIM integration</p>
+                                    <p class="etim-lk-plan-desc">Perfect for manufacturers getting started with ETIM classification</p>
                                 </div>
                                 <ul class="etim-lk-feature-list">
                                     <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Group & Class Assignment</li>
                                     <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Dynamic Feature Generation</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Up to 5 Products</li>
                                 </ul>
                                 <div class="etim-lk-plan-btn-wrap">
-                                    <?php if ($current_plan === 'Free'): ?>
+                                    <?php if (($plan_code <= ETIM_License_Manager::PLAN_MANUFACTURER && !$is_active) || ($is_active && $plan_code === ETIM_License_Manager::PLAN_MANUFACTURER)): ?>
                                         <span class="etim-lk-btn-current">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="https://webronic.com/pricing" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_MANUFACTURER )); ?>" target="_blank" class="etim-lk-btn-upgrade">Get Started</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Standard Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($current_plan === 'Standard' || $current_plan === 'Manufacturer') ? 'etim-lk-plan-active' : ''; ?>">
+                            <!-- Distributor Plan -->
+                            <div class="etim-lk-plan-card <?php echo ($is_active && $plan_code === ETIM_License_Manager::PLAN_DISTRIBUTOR) ? 'etim-lk-plan-active' : ''; ?>" style="position:relative;">
+                                <?php if (!$is_active || $plan_code < ETIM_License_Manager::PLAN_DISTRIBUTOR): ?>
+                                <div class="etim-lk-popular-badge">Popular</div>
+                                <?php endif; ?>
                                 <div class="etim-lk-plan-top">
                                     <img src="<?php echo esc_url($assets_url . 'standard.png'); ?>" alt="Distributor" class="etim-lk-plan-img" />
                                     <h4 class="etim-lk-plan-name">Distributor</h4>
                                     <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">499$</span>
+                                        <span class="etim-lk-price-amount">$499</span>
                                         <span class="etim-lk-price-period">/year</span>
                                     </div>
-                                    <p class="etim-lk-plan-desc">Ideal for businesses managing structured ETIM data and classifications</p>
+                                    <p class="etim-lk-plan-desc">Ideal for distributors and wholesalers managing product catalogs</p>
                                 </div>
                                 <ul class="etim-lk-feature-list">
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Group & Class Assignment</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Dynamic Feature Generation</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Frontend Technical Specs</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Everything in Manufacturer</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Up to 50 Products</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Faceted Filters</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> CSV/XML Import & Export</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Bulk Assignment (10/batch)</li>
                                 </ul>
                                 <div class="etim-lk-plan-btn-wrap">
-                                    <?php if ($current_plan === 'Standard' || $current_plan === 'Manufacturer'): ?>
+                                    <?php if ($is_active && $plan_code === ETIM_License_Manager::PLAN_DISTRIBUTOR): ?>
                                         <span class="etim-lk-btn-current">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="https://webronic.com/pricing" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_DISTRIBUTOR )); ?>" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Pro Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($current_plan === 'Pro' || $current_plan === 'Distributor' || $current_plan === 'ERP') ? 'etim-lk-plan-active' : ''; ?>">
+                            <!-- Agency / ERP Plan -->
+                            <div class="etim-lk-plan-card <?php echo ($is_active && $plan_code === ETIM_License_Manager::PLAN_ERP) ? 'etim-lk-plan-active' : ''; ?>">
                                 <div class="etim-lk-plan-top">
-                                    <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="Woocommerce Agencies" class="etim-lk-plan-img" />
-                                    <h4 class="etim-lk-plan-name">Woocommerce Agencies</h4>
+                                    <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="WooCommerce Agency" class="etim-lk-plan-img" />
+                                    <h4 class="etim-lk-plan-name">WooCommerce Agency</h4>
                                     <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">999$</span>
+                                        <span class="etim-lk-price-amount">$999</span>
                                         <span class="etim-lk-price-period">/year</span>
                                     </div>
-                                    <p class="etim-lk-plan-desc">Designed for growing businesses that require advanced ETIM capabilities and workflow efficiency</p>
+                                    <p class="etim-lk-plan-desc">Unlimited access for agencies managing multiple WooCommerce stores</p>
                                 </div>
                                 <ul class="etim-lk-feature-list">
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Everything in Manufacturer</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Everything in Distributor</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Unlimited Products</li>
                                     <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Unlimited Bulk Mapping</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Faceted Filters</li>
                                     <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Priority Support</li>
                                 </ul>
                                 <div class="etim-lk-plan-btn-wrap">
-                                    <?php if ($current_plan === 'Pro' || $current_plan === 'Distributor' || $current_plan === 'ERP'): ?>
+                                    <?php if ($is_active && $plan_code === ETIM_License_Manager::PLAN_ERP): ?>
                                         <span class="etim-lk-btn-current">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="https://webronic.com/pricing" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_ERP )); ?>" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -1052,6 +1172,55 @@ class ETIM_Admin_Settings {
         .etim-f-list { list-style: none; padding: 0; margin: 0 0 24px 0; }
         .etim-f-list li { margin-bottom: 12px; font-size: 13px; color: #475569; }
 
+        /* Pro Badge */
+        .etim-pro-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff; padding: 2px 10px; border-radius: 12px;
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+
+        /* Locked feature row */
+        .etim-pro-locked {
+            position: relative; opacity: 0.55; pointer-events: none;
+        }
+        .etim-pro-locked .etim-pro-badge {
+            pointer-events: all; position: relative; z-index: 2;
+        }
+
+        /* Status pills variants */
+        .etim-lk-status-active { background: #d1fae5; color: #065f46; }
+        .etim-lk-status-expired { background: #fef2f2; color: #991b1b; }
+        .etim-lk-status-free { background: #f1f5f9; color: #64748b; }
+
+        /* Popular badge */
+        .etim-lk-popular-badge {
+            position: absolute; top: -10px; right: 16px;
+            background: linear-gradient(135deg, #4888E8, #6366f1);
+            color: #fff; padding: 4px 14px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+        }
+
+        /* Feature access table */
+        .etim-feature-table {
+            width: 100%; border-collapse: collapse;
+        }
+        .etim-feature-table tr {
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .etim-feature-table tr:last-child {
+            border-bottom: none;
+        }
+        .etim-feature-table td {
+            padding: 12px 0; font-size: 13px;
+        }
+        .etim-ft-name {
+            font-weight: 500; color: #334155;
+        }
+        .etim-ft-status {
+            text-align: right; width: 120px;
+        }
+
         @media (max-width: 960px) {
             .etim-lk-plans-grid { grid-template-columns: 1fr; }
             .etim-lk-detail-grid { grid-template-columns: 1fr; }
@@ -1065,6 +1234,29 @@ class ETIM_Admin_Settings {
             var navBtns = document.querySelectorAll('.etim-nav-btn');
             var tabs = document.querySelectorAll('.etim-tab');
             
+            // Check for saved tab
+            var activeTab = localStorage.getItem('etim_active_tab') || 'tab-dashboard';
+            
+            // Initial setup based on saved tab
+            if (activeTab) {
+                navBtns.forEach(function(b) { b.classList.remove('active'); });
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                
+                var targetBtn = document.querySelector('.etim-nav-btn[data-tab="' + activeTab + '"]');
+                var targetTab = document.getElementById(activeTab);
+                
+                if (targetBtn && targetTab) {
+                    targetBtn.classList.add('active');
+                    targetTab.classList.add('active');
+                } else {
+                    // Fallback to dashboard
+                    var firstBtn = document.querySelector('.etim-nav-btn[data-tab="tab-dashboard"]');
+                    if(firstBtn) firstBtn.classList.add('active');
+                    var firstTab = document.getElementById('tab-dashboard');
+                    if(firstTab) firstTab.classList.add('active');
+                }
+            }
+            
             navBtns.forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -1075,8 +1267,26 @@ class ETIM_Admin_Settings {
                     
                     this.classList.add('active');
                     document.getElementById(targetId).classList.add('active');
+                    
+                    // Save active tab
+                    localStorage.setItem('etim_active_tab', targetId);
                 });
             });
+
+            // Color Sync logic
+            var colorText = document.getElementById('etim-filter-color-text');
+            var colorPicker = document.getElementById('etim-filter-color-picker');
+            if (colorText && colorPicker) {
+                colorText.addEventListener('input', function() {
+                    var val = this.value;
+                    if(val.match(/^#[0-9a-fA-F]{6}$/) || val.match(/^#[0-9a-fA-F]{3}$/)) {
+                        colorPicker.value = val.length === 4 ? '#' + val[1]+val[1]+val[2]+val[2]+val[3]+val[3] : val;
+                    }
+                });
+                colorPicker.addEventListener('input', function() {
+                    colorText.value = this.value.toUpperCase();
+                });
+            }
 
             // License Activation
             (function() {
@@ -1317,6 +1527,9 @@ class ETIM_Admin_Settings {
         if (!current_user_can('manage_woocommerce')) {
             wp_die(__('Permission denied', 'etim-for-woocommerce'));
         }
+        if (!ETIM_Feature_Access::get_instance()->can_export()) {
+            wp_die(__('CSV export is not available on your current plan. Please upgrade to Distributor or Agency plan.', 'etim-for-woocommerce'));
+        }
 
         if (ob_get_level()) {
             ob_end_clean();
@@ -1428,6 +1641,9 @@ class ETIM_Admin_Settings {
         if (!current_user_can('manage_woocommerce')) {
             wp_die(__('Permission denied', 'etim-for-woocommerce'));
         }
+        if (!ETIM_Feature_Access::get_instance()->can_export()) {
+            wp_die(__('XML export is not available on your current plan. Please upgrade to Distributor or Agency plan.', 'etim-for-woocommerce'));
+        }
 
         if (ob_get_level()) {
             ob_end_clean();
@@ -1490,6 +1706,9 @@ class ETIM_Admin_Settings {
     public function handle_xml_export_single() {
         if (!current_user_can('edit_products')) {
             wp_die(__('Permission denied', 'etim-for-woocommerce'));
+        }
+        if (!ETIM_Feature_Access::get_instance()->can_export()) {
+            wp_die(__('XML export is not available on your current plan. Please upgrade to Distributor or Agency plan.', 'etim-for-woocommerce'));
         }
 
         $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
@@ -1608,6 +1827,9 @@ class ETIM_Admin_Settings {
     public function handle_simple_import() {
         if (!current_user_can('manage_woocommerce') || !check_admin_referer('etim_simple_import_nonce')) {
             wp_die(__('Permission denied or invalid form submission', 'etim-for-woocommerce'));
+        }
+        if (!ETIM_Feature_Access::get_instance()->can_import()) {
+            wp_die(__('CSV import is not available on your current plan. Please upgrade to Distributor or Agency plan.', 'etim-for-woocommerce'));
         }
 
         if (empty($_FILES['import_file']['tmp_name'])) {

@@ -101,7 +101,7 @@ $assets_url = $plugin_url . '/assets/images/';
             </div> -->
         </div>
         <!-- Action Bar Section: Save, Download, and Shortcode in same row -->
-        <div class="etim-action-bar" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 16px; margin-top: 16px; flex-wrap: wrap; gap: 16px;">
+        <div class="etim-action-bar" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #e2e8f0; padding: 24px; margin-top: 0; flex-wrap: wrap; gap: 16px;">
             <div class="etim-save-section" id="etim-save-section" style="display: flex; align-items: center; gap: 12px; margin: 0; padding: 0; border: none; background: transparent;">
                 <button type="button" id="etim-save-btn" class="etim-btn etim-btn-save" style="margin: 0;"><?php esc_html_e('Save ETIM Data', 'etim-for-woocommerce'); ?></button>
                 <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_xml_export_single&product_id=' . $post->ID)); ?>" class="etim-btn etim-btn-xml" id="etim-download-xml-btn" style="margin: 0;"><?php esc_html_e('Download XML', 'etim-for-woocommerce'); ?></a>
