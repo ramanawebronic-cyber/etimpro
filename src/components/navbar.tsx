@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import etimLog from "../../public/etim-log.png";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
@@ -28,7 +29,7 @@ export function Navbar() {
         <div className="flex items-center">
           <Link href="/" className="flex items-center space-x-2">
             <Image
-              src="/etim-log.png"
+              src={etimLog}
               alt="ETIM Pro"
               width={160}
               height={40}

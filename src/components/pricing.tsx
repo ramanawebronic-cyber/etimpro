@@ -1,12 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { Check, Send, Plane, Rocket } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import freeImg from "../../public/free.png";
+import standardImg from "../../public/standard.png";
+import proImg from "../../public/pro.png";
 
 export function PricingSection() {
     const plans = [
         {
             name: "Manufacturer",
-            icon: <Send className="w-16 h-16 text-blue-500 mx-auto mb-6 transform -rotate-12" fill="currentColor" />,
+            icon: <Image src={freeImg} alt="Manufacturer Plan" width={64} height={64} className="mx-auto mb-6 object-contain h-16 w-auto" />,
             price: "$299",
             oldPrice: "$599",
             discount: "50% OFF",
@@ -29,7 +33,7 @@ export function PricingSection() {
         },
         {
             name: "Distributor",
-            icon: <Plane className="w-16 h-16 text-slate-300 mx-auto mb-6 transform -rotate-45" fill="currentColor" stroke="none" />,
+            icon: <Image src={standardImg} alt="Distributor Plan" width={64} height={64} className="mx-auto mb-6 object-contain h-16 w-auto" />,
             price: "$599",
             oldPrice: "$999",
             discount: "40% OFF",
@@ -53,7 +57,7 @@ export function PricingSection() {
         },
         {
             name: "WooCommerce Agency",
-            icon: <Rocket className="w-16 h-16 text-blue-400 mx-auto mb-6" fill="currentColor" stroke="none" />,
+            icon: <Image src={proImg} alt="WooCommerce Agency Plan" width={64} height={64} className="mx-auto mb-6 object-contain h-16 w-auto" />,
             price: "$999",
             oldPrice: "$1999",
             discount: "50% OFF",

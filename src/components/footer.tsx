@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import etimLog from "../../public/etim-log.png";
 import { Github, Twitter, Linkedin, MapPin, Mail } from "lucide-react";
 
 export function Footer() {
@@ -11,7 +12,7 @@ export function Footer() {
                     <div className="col-span-2 lg:col-span-2">
                         <Link href="/" className="flex items-center space-x-2 mb-4">
                             <Image
-                                src="/etim-log.png"
+                                src={etimLog}
                                 alt="ETIM Pro"
                                 width={160}
                                 height={40}
