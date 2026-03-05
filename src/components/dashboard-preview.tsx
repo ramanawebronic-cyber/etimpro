@@ -12,7 +12,7 @@ export function DashboardPreview() {
                     </Badge>
                     <div className="space-y-2 max-w-3xl">
                         <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl md:text-6xl text-foreground">
-                            Powerful WooCommerce's Native Experience
+                            Powerful WooCommerce&apos;s Native Experience
                         </h2>
                         <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mx-auto mt-4 px-2">
                             Forget clunky external sync tools. Native integration means instant ETIM classifications without leaving wp-admin.
