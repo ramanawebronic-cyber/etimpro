@@ -47,8 +47,8 @@ export default function ContactPage() {
                         </div>
                         <h3 className="font-semibold text-lg text-slate-900 mb-1">Email Support</h3>
                         <p className="text-slate-500 text-sm mb-3">Reach out to our dedicated support team.</p>
-                        <a href="mailto:support@virtualtour360.ai" className="text-blue-600 font-medium text-sm hover:underline">
-                            support@virtualtour360.ai
+                        <a href="mailto:support@etimpro.ai" className="text-blue-600 font-medium text-sm hover:underline">
+                            support@etimpro.ai
                         </a>
                     </div>
                     <div className="p-6 bg-white border border-blue-200 rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex flex-col items-center text-center ring-2 ring-blue-500/20">
@@ -226,8 +226,8 @@ export default function ContactPage() {
                             <div className="space-y-3 text-sm">
                                 <div className="flex items-center gap-3 text-slate-600">
                                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />
-                                    <a href="mailto:support@virtualtour360.ai" className="hover:text-blue-600 transition-colors">
-                                        support@virtualtour360.ai
+                                    <a href="mailto:support@etimpro.ai" className="hover:text-blue-600 transition-colors">
+                                        support@etimpro.ai
                                     </a>
                                 </div>
                             </div>

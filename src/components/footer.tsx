@@ -33,8 +33,8 @@ export function Footer() {
                                 </div>
                                 <div className="flex items-center gap-2.5 text-sm text-slate-500">
                                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />
-                                    <a href="mailto:support@virtualtour360.ai" className="hover:text-blue-600 transition-colors">
-                                        support@virtualtour360.ai
+                                    <a href="mailto:support@etimpro.ai" className="hover:text-blue-600 transition-colors">
+                                        support@etimpro.ai
                                     </a>
                                 </div>
                             </div>
