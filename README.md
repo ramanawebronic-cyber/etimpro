@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ETIM Pro Website
 
-## Getting Started
+Modern SaaS marketing website for the ETIM Product Manager WooCommerce plugin.
+Built with Next.js 14, App Router, Tailwind CSS, TypeScript, Shadcn UI, and Framer Motion.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Modern Tech Stack**: Next.js 14 App Router, React, TypeScript
+- **Beautiful UI**: Tailwind CSS combined with Shadcn UI components
+- **Smooth Animations**: Framer Motion for scroll reveals and interactions
+- **Fully Responsive**: Mobile-first approach for all pages
+- **SEO Optimized**: Built-in Next.js metadata system per page
+- **High Performance**: Optimized fonts, images, and minimal client-side JS
+
+## 📁 Project Structure
+
+```text
+/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── docs/               # Documentation
+│   │   ├── features/           # Feature detail
+│   │   ├── pricing/            # Pricing plans
+│   │   ├── contact/            # Support options
+│   │   ├── download/           # Latest version
+│   │   └── changelog/          # Release history
+│   ├── components/             # Reusable UI components
+│   │   ├── ui/                 # Core Shadcn UI elements
+│   │   ├── navbar.tsx          # Main navigation
+│   │   ├── footer.tsx          # Global footer
+│   │   ├── hero.tsx            # Main landing headline
+│   │   ├── features.tsx        # Features grid
+│   │   ├── pricing.tsx         # Pricing table
+│   │   ├── faq.tsx             # Accordion FAQs
+│   │   └── dashboard-preview.tsx # ETIM dashboard mockup
+│   └── lib/                    # Utility functions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Installation & Local Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-## Learn More
+3. **Open the browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-To learn more about Next.js, take a look at the following resources:
+## 📦 Production Build
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To create an optimized production build:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build
+```
 
-## Deploy on Vercel
+To start the production server:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🌐 Deployment (Vercel)
+
+The easiest way to deploy this Next.js app is to use the Vercel Platform.
+
+1. Push your code to a GitHub/GitLab/Bitbucket repository.
+2. Import the project into your Vercel dashboard.
+3. Vercel will automatically detect Next.js and apply the correct build settings (`npm run build`).
+4. Any pushes to the `main` branch will seamlessly trigger a redeployment.
+
+## 📈 SEO & Performance Optimization
+
+This project comes pre-configured for speed and structured data:
+
+- Uses `next/font` for optimizing custom fonts.
+- Includes distinct `metadata` objects exported from each page route for dynamic title/description tags.
+- Follows accessible UI principles. Check color contrasts if modifying the primary theme.
+

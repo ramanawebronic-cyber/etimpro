@@ -1,101 +1,75 @@
-import Image from "next/image";
+import { HeroSection } from "@/components/hero";
+import { FeaturesSection } from "@/components/features";
+import { DashboardPreview } from "@/components/dashboard-preview";
+import { PricingSection } from "@/components/pricing";
+import { FAQSection } from "@/components/faq";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'ETIM Pro | WooCommerce Product Classification Plugin',
+  description: 'The ultimate WooCommerce plugin for ETIM group, class and feature assignment. Import CSV/XML data easily and map up to 17 languages.',
+};
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <>
+      <HeroSection />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <DashboardPreview />
+
+      {/* Social Proof */}
+      <section className="py-12 border-y bg-muted/20">
+        <div className="container text-center">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-8">
+            Trusted by modern B2B electrical & plumbing distributors
+          </p>
+          <div className="flex flex-wrap justify-center gap-x-12 gap-y-8 opacity-50 grayscale hover:grayscale-0 transition-all">
+            {/* Placeholder logos for social proof */}
+            <div className="text-2xl font-bold font-serif opacity-80 hover:text-primary transition-colors">Vanderbilt</div>
+            <div className="text-2xl font-bold font-sans italic opacity-80 hover:text-primary transition-colors">LuminaTech</div>
+            <div className="text-2xl font-bold opacity-80 hover:text-primary transition-colors">NexCable</div>
+            <div className="text-2xl font-extrabold opacity-80 hover:text-primary transition-colors">PlumbCorp</div>
+            <div className="text-2xl font-bold font-mono opacity-80 hover:text-primary transition-colors">ElecPro</div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </section>
+
+      <FeaturesSection />
+
+      <div id="pricing">
+        <PricingSection />
+      </div>
+
+      <FAQSection />
+
+      {/* Bottom CTA */}
+      <section className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-primary/5 rounded-[3rem] mx-4 md:mx-auto max-w-6xl -z-10"></div>
+        <div className="container text-center">
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
+            Ready to structure your catalog?
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Stop relying on basic categories. Bring the power of ETIM standard directly into WooCommerce.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" asChild className="h-14 px-8 text-base shadow-lg hover:shadow-primary/20 transition-all rounded-full">
+              <Link href="/pricing">
+                Get Started
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="h-14 px-8 text-base bg-background rounded-full">
+              <Link href="/contact">
+                Talk to Sales
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
