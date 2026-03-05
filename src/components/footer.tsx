@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Github, Twitter, Linkedin, MapPin, Mail } from "lucide-react";
 
 export function Footer() {
@@ -9,9 +10,13 @@ export function Footer() {
                     {/* Brand */}
                     <div className="col-span-2 lg:col-span-2">
                         <Link href="/" className="flex items-center space-x-2 mb-4">
-                            <span className="font-bold text-xl inline-block bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                                ETIM Pro
-                            </span>
+                            <Image
+                                src="/etim-log.png"
+                                alt="ETIM Pro"
+                                width={160}
+                                height={40}
+                                className="h-10 w-auto"
+                            />
                         </Link>
                         <p className="text-slate-500 text-sm mb-6 max-w-xs">
                             The ultimate product classification extension for WooCommerce. Manage ETIM classes, features, and groups effortlessly.
@@ -21,9 +26,9 @@ export function Footer() {
                         <div className="mb-6">
                             <h4 className="font-semibold text-slate-800 mb-3">Get in Touch</h4>
                             <div className="space-y-2.5">
-                                <div className="flex items-start gap-2.5 text-sm text-slate-500">
-                                    <MapPin className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                                    <span>Sockerbruksgatan<br />753140 Lidk&ouml;ping</span>
+                                <div className="flex items-center gap-2.5 text-sm text-slate-500">
+                                    <MapPin className="h-4 w-4 text-blue-500 shrink-0" />
+                                    <span>Sockerbruksgatan 753140 Lidk&ouml;ping</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-sm text-slate-500">
                                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />

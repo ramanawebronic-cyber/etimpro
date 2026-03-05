@@ -1,55 +1,83 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Send, Plane, Rocket } from "lucide-react";
 import Link from "next/link";
 
 export function PricingSection() {
     const plans = [
         {
             name: "Manufacturer",
-            price: "$199",
-            description: "Perfect for single-brand manufacturers.",
+            icon: <Send className="w-16 h-16 text-blue-500 mx-auto mb-6 transform -rotate-12" fill="currentColor" />,
+            price: "$299",
+            oldPrice: "$599",
+            discount: "50% OFF",
+            period: "/ year",
+            description: "Best for manufacturers getting started with ETIM classification",
             features: [
-                "Up to 5 products on frontend",
-                "ETIM Classification mapping",
-                "CSV Data import",
-                "1 Language mapping",
-                "1 Year Support"
+                "Assign ETIM data to up to 5 products",
+                "Dynamic Feature Generation",
+                "CSV Import support",
+                "Maximum 1 website license",
+                "Bulk assignment: 10 products/batch"
             ],
-            popular: false,
+            tag: null,
+            tagColor: "",
+            borderColor: "border-gray-200",
+            titleColor: "text-black",
+            priceColor: "text-black",
+            buttonText: "Select Plan",
+            buttonClasses: "bg-black text-white hover:bg-gray-800",
         },
         {
             name: "Distributor",
-            price: "$399",
-            description: "For multi-brand distributors & B2B.",
+            icon: <Plane className="w-16 h-16 text-slate-300 mx-auto mb-6 transform -rotate-45" fill="currentColor" stroke="none" />,
+            price: "$599",
+            oldPrice: "$999",
+            discount: "40% OFF",
+            period: "/ year",
+            description: "Perfect for distributors and wholesalers managing larger product catalogs",
             features: [
-                "Up to 10 products on frontend",
-                "Advanced ETIM Classification",
-                "XML & CSV Import",
-                "Up to 3 Languages mapping",
-                "Priority Support",
-                "Bulk Feature Assignment"
+                "Everything in Manufacturer plan",
+                "Assign ETIM data to up to 50 products",
+                "ETIM Class Filtering option",
+                "CSV & XML Import / Export",
+                "Maximum 5 website licenses",
+                "Bulk assignment: 50 products/batch"
             ],
-            popular: true,
+            tag: "MOST POPULAR",
+            tagColor: "bg-blue-500 text-white",
+            borderColor: "border-blue-500",
+            titleColor: "text-blue-500",
+            priceColor: "text-blue-500",
+            buttonText: "Current Plan",
+            buttonClasses: "bg-blue-500 text-white hover:bg-blue-600",
         },
         {
-            name: "WooCommerce Pro",
-            price: "$699",
-            description: "Enterprise scale WooCommerce catalogs.",
+            name: "WooCommerce Agency",
+            icon: <Rocket className="w-16 h-16 text-blue-400 mx-auto mb-6" fill="currentColor" stroke="none" />,
+            price: "$999",
+            oldPrice: "$1999",
+            discount: "50% OFF",
+            period: "/ year",
+            description: "Ideal for agencies managing multiple WooCommerce stores",
             features: [
-                "Unlimited products on frontend",
-                "Full Taxonomy Integration",
-                "Direct API Integration (beta)",
-                "All 17 Languages Supported",
-                "Dedicated Account Manager",
-                "Custom development discount"
+                "Everything in Distributor plan",
+                "Unlimited ETIM data assignments",
+                "Maximum 10 website licenses",
+                "Unlimited bulk product assignments",
+                "Multilingual support"
             ],
-            popular: false,
+            tag: "PREMIUM",
+            tagColor: "bg-amber-600 text-white",
+            borderColor: "border-amber-600",
+            titleColor: "text-amber-600",
+            priceColor: "text-amber-600",
+            buttonText: "Select Plan",
+            buttonClasses: "bg-amber-600 text-white hover:bg-amber-700",
         }
     ];
 
     return (
-        <section className="py-24">
+        <section className="py-24 bg-white">
             <div className="container mx-auto px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
                     <div className="space-y-2 max-w-3xl">
@@ -62,46 +90,59 @@ export function PricingSection() {
                         </p>
                     </div>
                 </div>
-                <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+
+                <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-3 items-stretch">
                     {plans.map((plan, i) => (
-                        <Card key={i} className={`flex flex-col rounded-3xl ${plan.popular ? 'border-blue-500 shadow-xl shadow-blue-500/10 scale-105 z-10' : 'border-slate-200'}`}>
-                            <CardHeader className="pt-8 px-8">
-                                {plan.popular && (
-                                    <div className="w-full flex justify-end -mt-4 mb-2">
-                                        <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                            Most Popular
+                        <div key={i} className={`flex flex-col rounded-xl border ${plan.borderColor} bg-white overflow-hidden relative shadow-sm`}>
+                            {plan.tag && (
+                                <div className={`absolute top-0 right-0 ${plan.tagColor} text-xs font-black px-4 py-1.5 rounded-bl-xl tracking-wide z-10 uppercase`}>
+                                    {plan.tag}
+                                </div>
+                            )}
+
+                            <div className="p-8 pb-4 flex-1">
+                                <div className="mt-4">
+                                    {plan.icon}
+                                </div>
+                                <h3 className={`text-2xl font-black mb-2 ${plan.titleColor}`}>{plan.name}</h3>
+                                <p className="text-sm text-slate-500 mb-8 h-10">{plan.description}</p>
+
+                                <div className="mb-4">
+                                    <div className="flex items-baseline mb-2">
+                                        <span className={`text-5xl font-black ${plan.priceColor}`}>{plan.price}</span>
+                                        <span className="text-sm font-medium text-slate-600 ml-1">{plan.period}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-slate-400 line-through font-medium">{plan.oldPrice}</span>
+                                        <span className="bg-emerald-50 text-emerald-600 text-xs font-bold px-2 py-0.5 rounded-md">
+                                            {plan.discount}
                                         </span>
                                     </div>
-                                )}
-                                <CardTitle className="text-2xl text-slate-900">{plan.name}</CardTitle>
-                                <CardDescription className="pt-2 text-base text-slate-500">{plan.description}</CardDescription>
-                                <div className="mt-4 flex items-baseline text-5xl font-extrabold text-slate-900">
-                                    {plan.price}
-                                    <span className="ml-1 text-xl font-medium text-slate-400">/year</span>
                                 </div>
-                            </CardHeader>
-                            <CardContent className="flex-1 px-8 pt-6">
-                                <ul className="grid gap-4">
+
+                                <ul className="space-y-3 mt-8">
                                     {plan.features.map((feature, idx) => (
-                                        <li key={idx} className="flex items-start gap-3 text-sm">
-                                            <Check className="h-5 w-5 text-blue-500 shrink-0" />
-                                            <span className="text-slate-600">{feature}</span>
+                                        <li key={idx} className="flex items-start gap-3">
+                                            <div className="rounded-full bg-blue-500 p-0.5 mt-0.5 shrink-0">
+                                                <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                                            </div>
+                                            <span className="text-sm text-slate-600 font-medium leading-relaxed">{feature}</span>
                                         </li>
                                     ))}
                                 </ul>
-                            </CardContent>
-                            <CardFooter className="px-8 pb-8 pt-4">
+                            </div>
+
+                            <div className="p-6 pt-0 mt-auto">
                                 <Button
-                                    className={`w-full h-12 rounded-full text-base font-medium ${plan.popular ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
-                                    variant={plan.popular ? "default" : "outline"}
+                                    className={`w-full h-12 rounded-xl text-base font-bold transition-all ${plan.buttonClasses}`}
                                     asChild
                                 >
                                     <Link href="/checkout">
-                                        {plan.popular ? "Get Started Now" : "Choose Plan"}
+                                        {plan.buttonText}
                                     </Link>
                                 </Button>
-                            </CardFooter>
-                        </Card>
+                            </div>
+                        </div>
                     ))}
                 </div>
             </div>
