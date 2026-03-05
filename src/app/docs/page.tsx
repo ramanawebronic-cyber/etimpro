@@ -53,7 +53,7 @@ export default function DocsPage() {
 
     return (
         <div className="pt-24 pb-32">
-            <div className="container max-w-5xl">
+            <div className="container mx-auto max-w-5xl">
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">ETIM Pro Documentation</h1>
                 <p className="text-xl text-muted-foreground mb-16 max-w-2xl">
                     Everything you need to master ETIM classification on your WooCommerce store.

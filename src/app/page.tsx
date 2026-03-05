@@ -22,7 +22,7 @@ export default function Home() {
 
       {/* Social Proof */}
       <section className="py-12 border-y bg-muted/20">
-        <div className="container text-center">
+        <div className="container mx-auto text-center">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-8">
             Trusted by modern B2B electrical & plumbing distributors
           </p>
@@ -48,7 +48,7 @@ export default function Home() {
       {/* Bottom CTA */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-primary/5 rounded-[3rem] mx-4 md:mx-auto max-w-6xl -z-10"></div>
-        <div className="container text-center">
+        <div className="container mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
             Ready to structure your catalog?
           </h2>

@@ -37,7 +37,7 @@ export function FeaturesSection() {
 
     return (
         <section className="py-24 bg-muted/30">
-            <div className="container relative">
+            <div className="container mx-auto relative">
                 <div className="text-center mb-16 max-w-2xl mx-auto">
                     <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
                         Everything you need for ETIM

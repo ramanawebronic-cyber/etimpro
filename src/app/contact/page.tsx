@@ -9,7 +9,7 @@ export const metadata = {
 export default function ContactPage() {
     return (
         <div className="pt-24 pb-32">
-            <div className="container max-w-4xl text-center">
+            <div className="container mx-auto max-w-4xl text-center">
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Contact Sales & Support</h1>
                 <p className="text-xl text-muted-foreground mb-16 max-w-2xl mx-auto">
                     We&apos;re here to help you get the most out of ETIM Pro.

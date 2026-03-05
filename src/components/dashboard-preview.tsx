@@ -5,7 +5,7 @@ export function DashboardPreview() {
         <section className="py-24 relative overflow-hidden bg-background">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/20 blur-[120px] rounded-full pointer-events-none opacity-50 z-0"></div>
 
-            <div className="container relative z-10 px-4 md:px-6">
+            <div className="container mx-auto relative z-10 px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center mb-16">
                     <Badge className="bg-primary/20 text-primary hover:bg-primary/30 rounded-full px-4 py-1.5 transition-colors border-0">
                         Native Deep Integration

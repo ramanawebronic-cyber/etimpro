@@ -8,7 +8,7 @@ export function HeroSection() {
         <section className="relative overflow-hidden w-full pt-24 md:pt-32 lg:pt-40 pb-16 md:pb-24 flex items-center justify-center">
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
 
-            <div className="container relative z-10 flex flex-col items-center text-center max-w-[800px] mx-auto">
+            <div className="container mx-auto relative z-10 flex flex-col items-center text-center max-w-[800px] mx-auto">
                 <Badge variant="outline" className="mb-6 rounded-full px-4 py-1.5 bg-background border-primary/20 text-primary">
                     <span className="flex h-2 w-2 rounded-full bg-primary mr-2"></span>
                     ETIM Pro for WooCommerce is now live

@@ -9,7 +9,7 @@ export const metadata = {
 export default function FeaturesPage() {
     return (
         <div className="pt-24 pb-16">
-            <div className="container max-w-4xl text-center mb-16">
+            <div className="container mx-auto max-w-4xl text-center mb-16">
                 <Badge variant="outline" className="mb-6 rounded-full px-4 py-1.5 bg-primary/10 text-primary border-primary/20">
                     Powerful Capabilites
                 </Badge>
@@ -23,7 +23,7 @@ export default function FeaturesPage() {
 
             <FeaturesSection />
 
-            <div className="container max-w-6xl mt-24">
+            <div className="container mx-auto max-w-6xl mt-24">
                 {/* Additional detailed feature blocks can go here */}
                 <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
                     <div className="bg-muted aspect-video rounded-3xl border shadow-sm"></div>

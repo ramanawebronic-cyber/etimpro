@@ -42,7 +42,7 @@ export default function ChangelogPage() {
 
     return (
         <div className="pt-24 pb-32">
-            <div className="container max-w-3xl">
+            <div className="container mx-auto max-w-3xl">
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Changelog</h1>
                 <p className="text-xl text-muted-foreground mb-16">
                     See what&apos;s new in ETIM Pro.
