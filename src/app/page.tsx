@@ -1,6 +1,8 @@
 import { HeroSection } from "@/components/hero";
 import { FeaturesSection } from "@/components/features";
 import { DashboardPreview } from "@/components/dashboard-preview";
+import { CsvDataMappingSection } from "@/components/csv-data-mapping";
+import { MultiLanguageSection } from "@/components/multi-language";
 import { HowItWorksSection } from "@/components/how-it-works";
 import { PricingSection } from "@/components/pricing";
 import { FAQSection } from "@/components/faq";
@@ -36,6 +38,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <CsvDataMappingSection />
+
+      <MultiLanguageSection />
 
       <FeaturesSection />
 
