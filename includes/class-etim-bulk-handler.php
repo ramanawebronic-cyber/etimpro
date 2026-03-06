@@ -145,26 +145,15 @@ class ETIM_Bulk_Handler {
             wp_die(__('You do not have permission to access this page.', 'etim-for-woocommerce'));
         }
 
-        // Feature gating: block Manufacturer/Free from bulk assign
         $feature_access = ETIM_Feature_Access::get_instance();
-        if (!$feature_access->can_bulk_assign()) {
-            echo '<div class="wrap">';
-            echo '<h1>' . esc_html__('Bulk ETIM Assignment', 'etim-for-woocommerce') . '</h1>';
-            echo '<div style="max-width:520px;margin:60px auto;text-align:center;padding:48px 32px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;">';
-            echo '<div style="width:64px;height:64px;margin:0 auto 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;">';
-            echo '<svg width="28" height="28" fill="none" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#fff" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
-            echo '</div>';
-            echo '<h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0f172a;">Pro Feature</h2>';
-            echo '<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.6;">Bulk ETIM assignment is available on Distributor and WooCommerce Agency plans. Upgrade to assign ETIM data to multiple products at once.</p>';
-            echo '<a href="' . esc_url($feature_access->get_upgrade_url()) . '" target="_blank" style="display:inline-block;background:#4888E8;color:#fff;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;transition:background 0.2s;">Upgrade Now</a>';
-            echo '<br><a href="' . esc_url(admin_url('edit.php?post_type=product')) . '" style="display:inline-block;margin-top:12px;color:#64748b;font-size:13px;text-decoration:none;">&larr; Back to Products</a>';
-            echo '</div></div>';
-            return;
-        }
+        $license_manager = ETIM_License_Manager::get_instance();
+        $assets_url = ETIM_WC_PLUGIN_URL . 'assets/images/';
 
+        // Parse product IDs first
         $product_ids_raw = isset($_GET['product_ids']) ? sanitize_text_field($_GET['product_ids']) : '';
         $product_ids = array_filter(array_map('intval', explode(',', $product_ids_raw)));
 
+        // If no products selected, show blocking page (nothing to show in background)
         if (empty($product_ids)) {
             echo '<div class="wrap"><h1>' . esc_html__('Bulk ETIM Assignment', 'etim-for-woocommerce') . '</h1>';
             echo '<div class="notice notice-error"><p>' . esc_html__('No products selected. Please go back and select products.', 'etim-for-woocommerce') . '</p></div>';
@@ -172,19 +161,50 @@ class ETIM_Bulk_Handler {
             return;
         }
 
-        $client_id = get_option('etim_client_id', '');
-        if (empty($client_id)) {
-            echo '<div class="wrap"><h1>' . esc_html__('Bulk ETIM Assignment', 'etim-for-woocommerce') . '</h1>';
-            echo '<div class="notice notice-error"><p>';
-            printf(
-                wp_kses(
-                    __('ETIM API credentials are not configured. Please <a href="%s">configure your credentials</a> first.', 'etim-for-woocommerce'),
-                    ['a' => ['href' => []]]
-                ),
-                esc_url(admin_url('admin.php?page=etim-settings'))
-            );
-            echo '</p></div></div>';
-            return;
+        // Determine popup type (null = no popup, user has full access)
+        $popup_type = null;
+        $popup_data = [];
+
+        if (!$license_manager->has_active_license()) {
+            $popup_type = 'no_license';
+        } elseif (!$feature_access->can_bulk_assign()) {
+            $popup_type = 'plan_not_eligible';
+        } else {
+            $bulk_limit = $feature_access->get_bulk_limit();
+            $selected_count = count($product_ids);
+            if ($bulk_limit !== PHP_INT_MAX && $selected_count > $bulk_limit) {
+                $popup_type = 'bulk_limit_exceeded';
+                $popup_data = ['bulk_limit' => $bulk_limit, 'selected_count' => $selected_count];
+            } else {
+                $remaining = $feature_access->get_remaining_product_slots();
+                if ($remaining !== PHP_INT_MAX && $selected_count > $remaining) {
+                    $popup_type = 'product_limit_reached';
+                    $popup_data = [
+                        'assigned'  => $feature_access->get_assigned_product_count(),
+                        'limit'     => $feature_access->get_product_limit(),
+                        'selected'  => $selected_count,
+                        'remaining' => $remaining,
+                    ];
+                }
+            }
+        }
+
+        // If no popup needed, check credentials (blocking page for config issue)
+        if ($popup_type === null) {
+            $client_id = get_option('etim_client_id', '');
+            if (empty($client_id)) {
+                echo '<div class="wrap"><h1>' . esc_html__('Bulk ETIM Assignment', 'etim-for-woocommerce') . '</h1>';
+                echo '<div class="notice notice-error"><p>';
+                printf(
+                    wp_kses(
+                        __('ETIM API credentials are not configured. Please <a href="%s">configure your credentials</a> first.', 'etim-for-woocommerce'),
+                        ['a' => ['href' => []]]
+                    ),
+                    esc_url(admin_url('admin.php?page=etim-settings'))
+                );
+                echo '</p></div></div>';
+                return;
+            }
         }
 
         // Fetch product names for display
@@ -196,9 +216,119 @@ class ETIM_Bulk_Handler {
             }
         }
 
-        $assets_url = ETIM_WC_PLUGIN_URL . 'assets/images/';
-
+        // Always render the template (visible in background for popup cases)
         include ETIM_WC_PLUGIN_DIR . 'templates/bulk-assign-page.php';
+
+        // If there's an error condition, render the popup overlay
+        if ($popup_type !== null) {
+            $this->render_bulk_popup($popup_type, $popup_data, $assets_url, $feature_access);
+        }
+    }
+
+    /**
+     * Render popup overlay for bulk assignment restrictions
+     */
+    private function render_bulk_popup($type, $data, $assets_url, $feature_access) {
+        $upgrade_url = $feature_access->get_upgrade_url();
+        $products_url = admin_url('edit.php?post_type=product');
+        $license_url = admin_url('admin.php?page=etim-license');
+        ?>
+        <div id="etim-bulk-restriction-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:rgba(15,23,42,0.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;">
+            <div id="etim-bulk-restriction-popup" style="position:relative;max-width:520px;width:90%;background:#fff;border-radius:20px;padding:44px 36px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.15);animation:etimPopupIn 0.3s ease;">
+
+                <!-- Close Button -->
+                <button type="button" id="etim-bulk-popup-close" style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="Close">
+                    <img src="<?php echo esc_url($assets_url . 'close.png'); ?>" alt="Close" style="width:14px;height:14px;opacity:0.6;" onerror="this.parentElement.innerHTML='&times;';" />
+                </button>
+
+                <!-- Icon -->
+                <div style="margin-bottom:20px;">
+                    <img src="<?php echo esc_url($assets_url . 'open1.png'); ?>" alt="" style="width:220px;height:auto;" />
+                </div>
+
+                <?php if ($type === 'no_license'): ?>
+                    <h2 style="margin:0 0 14px;font-size:22px;font-weight:700;color:#4888E8;">License Required</h2>
+                    <p style="margin:0 0 8px;font-size:16px;color:#0f172a;line-height:1.6;font-weight:700;">You don't have a proper license to use this feature.</p>
+                    <p style="margin:0 0 28px;font-size:15px;color:#334155;font-weight:600;">Please activate a valid license key to access Bulk ETIM Assignment.</p>
+                    <a href="<?php echo esc_url($license_url); ?>" style="display:inline-flex;align-items:center;gap:8px;background:#4888E8;color:#fff;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background 0.2s;box-shadow:0 4px 12px rgba(72,136,232,0.3);">
+                        <img src="<?php echo esc_url($assets_url . 'premium.png'); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none';" />
+                        Upgrade
+                    </a>
+
+                <?php elseif ($type === 'plan_not_eligible'): ?>
+                    <h2 style="margin:0 0 14px;font-size:22px;font-weight:700;color:#4888E8;">Upgrade Required</h2>
+                    <p style="margin:0 0 8px;font-size:16px;color:#0f172a;line-height:1.6;font-weight:700;">Bulk ETIM Assignment is available only on Distributor and WooCommerce Agency Plans.</p>
+                    <p style="margin:0 0 28px;font-size:15px;color:#334155;font-weight:600;">Upgrade your plan to assign ETIM data to multiple products at once and streamline your workflow.</p>
+                    <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#4888E8;color:#fff;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background 0.2s;box-shadow:0 4px 12px rgba(72,136,232,0.3);">
+                        <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none';" />
+                        Upgrade
+                    </a>
+
+                <?php elseif ($type === 'bulk_limit_exceeded'): ?>
+                    <h2 style="margin:0 0 14px;font-size:22px;font-weight:700;color:#4888E8;">Bulk Limit Exceeded</h2>
+                    <p style="margin:0 0 8px;font-size:16px;color:#0f172a;line-height:1.6;font-weight:700;">Your plan allows bulk assignment to <?php echo intval($data['bulk_limit']); ?> products at a time.</p>
+                    <p style="margin:0 0 8px;font-size:15px;color:#334155;font-weight:600;">You selected <strong><?php echo intval($data['selected_count']); ?></strong> products.</p>
+                    <p style="margin:0 0 28px;font-size:14px;color:#64748b;">Please select fewer products or upgrade your plan for higher limits.</p>
+                    <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#4888E8;color:#fff;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background 0.2s;box-shadow:0 4px 12px rgba(72,136,232,0.3);">
+                        <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none';" />
+                        Upgrade
+                    </a>
+
+                <?php elseif ($type === 'product_limit_reached'): ?>
+                    <h2 style="margin:0 0 14px;font-size:22px;font-weight:700;color:#4888E8;">Product Limit Reached</h2>
+                    <p style="margin:0 0 8px;font-size:16px;color:#0f172a;line-height:1.6;font-weight:700;">You have assigned ETIM data to <?php echo intval($data['assigned']); ?> of <?php echo intval($data['limit']); ?> products allowed on your current plan.</p>
+                    <p style="margin:0 0 8px;font-size:15px;color:#334155;font-weight:600;">You selected <strong><?php echo intval($data['selected']); ?></strong> products but only <strong><?php echo intval($data['remaining']); ?></strong> slot(s) remaining.</p>
+                    <p style="margin:0 0 28px;font-size:14px;color:#64748b;">Upgrade your plan to assign ETIM data to more products.</p>
+                    <a href="<?php echo esc_url($upgrade_url); ?>" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#4888E8;color:#fff;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background 0.2s;box-shadow:0 4px 12px rgba(72,136,232,0.3);">
+                        <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none';" />
+                        Upgrade
+                    </a>
+                <?php endif; ?>
+
+                <!-- Back to Products -->
+                <div style="margin-top:20px;">
+                    <a href="<?php echo esc_url($products_url); ?>" style="display:inline-flex;align-items:center;gap:6px;color:#64748b;font-size:14px;font-weight:600;text-decoration:none;padding:8px 20px;border-radius:8px;border:1px solid #e2e8f0;transition:all 0.2s;background:#f8fafc;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        Back to Products
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            @keyframes etimPopupIn {
+                from { opacity: 0; transform: scale(0.92) translateY(20px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            #etim-bulk-popup-close:hover {
+                background: #fef2f2 !important;
+                border-color: #fecaca !important;
+            }
+            #etim-bulk-popup-close:hover img {
+                opacity: 1 !important;
+            }
+            #etim-bulk-restriction-popup a[href*="checkout"]:hover,
+            #etim-bulk-restriction-popup a[href*="etim-license"]:hover {
+                background: #3874CD !important;
+            }
+        </style>
+
+        <script>
+        (function(){
+            var closeBtn = document.getElementById('etim-bulk-popup-close');
+            var overlay = document.getElementById('etim-bulk-restriction-overlay');
+            if (closeBtn && overlay) {
+                closeBtn.addEventListener('click', function(){
+                    var popup = document.getElementById('etim-bulk-restriction-popup');
+                    if (popup) popup.style.display = 'none';
+                    overlay.style.pointerEvents = 'none';
+                    overlay.style.background = 'rgba(15,23,42,0.25)';
+                    overlay.style.backdropFilter = 'blur(2px)';
+                });
+            }
+        })();
+        </script>
+        <?php
     }
 
     /**

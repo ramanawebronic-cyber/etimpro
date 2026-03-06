@@ -219,13 +219,33 @@ class ETIM_Product_Meta {
      */
     public function add_product_tab($tabs) {
         global $product;
-        
+
         if (!$product) {
             return $tabs;
         }
-        
+
+        // License gating: no active license = no frontend tab at all
+        $feature_access = ETIM_Feature_Access::get_instance();
+        if (!$feature_access->has_active_license()) {
+            return $tabs;
+        }
+
+        // Check frontend product display limit
+        $frontend_limit = $feature_access->get_frontend_product_limit();
+        if ($frontend_limit <= 0) {
+            return $tabs;
+        }
+
+        // Check if this product is within the allowed display limit
+        if ($frontend_limit !== PHP_INT_MAX) {
+            $displayed_ids = $this->get_frontend_allowed_product_ids($frontend_limit);
+            if (!in_array($product->get_id(), $displayed_ids)) {
+                return $tabs;
+            }
+        }
+
         $etim_data = $this->get_product_etim_data($product->get_id());
-        
+
         // Check if there are features with assigned values
         $has_features = false;
         if (!empty($etim_data)) {
@@ -240,7 +260,7 @@ class ETIM_Product_Meta {
                 }
             }
         }
-        
+
         if ($has_features) {
             $tabs['etim_features'] = [
                 'title'    => __('Technical Specifications', 'etim-for-woocommerce'),
@@ -248,8 +268,25 @@ class ETIM_Product_Meta {
                 'callback' => [$this, 'render_product_tab'],
             ];
         }
-        
+
         return $tabs;
+    }
+
+    /**
+     * Get the product IDs allowed for frontend display based on the plan limit.
+     * Returns the first N product IDs that have ETIM data, ordered by assignment date.
+     */
+    private function get_frontend_allowed_product_ids($limit) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'etim_product_classes';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+            return [];
+        }
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT product_id FROM $table ORDER BY created_at ASC LIMIT %d",
+            $limit
+        ));
+        return array_map('intval', $ids);
     }
     
     /**
@@ -270,19 +307,37 @@ class ETIM_Product_Meta {
         $atts = shortcode_atts([
             'id' => ''
         ], $atts, 'etim_specs');
-        
+
         $product_id = !empty($atts['id']) ? intval($atts['id']) : get_the_ID();
-        
+
         if (!$product_id) {
             return '';
         }
 
+        // License gating: no active license = no frontend display
+        $feature_access = ETIM_Feature_Access::get_instance();
+        if (!$feature_access->has_active_license()) {
+            return '<div class="etim-pro-required" style="padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-align:center;color:#991b1b;font-weight:600;">A valid ETIM license is required to display product specifications. <a href="' . esc_url(admin_url('admin.php?page=etim-settings#tab-license')) . '" style="color:#4888E8;">Activate License</a></div>';
+        }
+
+        // Check frontend product display limit
+        $frontend_limit = $feature_access->get_frontend_product_limit();
+        if ($frontend_limit <= 0) {
+            return '';
+        }
+        if ($frontend_limit !== PHP_INT_MAX) {
+            $displayed_ids = $this->get_frontend_allowed_product_ids($frontend_limit);
+            if (!in_array($product_id, $displayed_ids)) {
+                return '<div class="etim-pro-required" style="padding:20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;text-align:center;color:#92400e;font-weight:600;">Upgrade your plan to display ETIM specifications for more products. <a href="' . esc_url($feature_access->get_upgrade_url()) . '" target="_blank" style="color:#4888E8;">Upgrade Now</a></div>';
+            }
+        }
+
         $etim_data = $this->get_product_etim_data($product_id);
-        
+
         if (empty($etim_data)) {
             return '';
         }
-        
+
         // Check if there are features with assigned values
         $has_features = false;
         foreach ($etim_data as $class) {
@@ -295,11 +350,11 @@ class ETIM_Product_Meta {
                 }
             }
         }
-        
+
         if (!$has_features) {
             return '';
         }
-        
+
         ob_start();
         include ETIM_WC_PLUGIN_DIR . 'templates/product-tab.php';
         return ob_get_clean();

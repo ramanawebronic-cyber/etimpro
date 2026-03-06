@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ETIM_WC_VERSION', '3.0.103');
+define('ETIM_WC_VERSION', '3.0.117');
 define('ETIM_WC_PLUGIN_FILE', __FILE__);
 define('ETIM_WC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ETIM_WC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -105,6 +105,7 @@ final class ETIM_For_WooCommerce {
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-product-meta.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-frontend-filter.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-bulk-handler.php';
+        require_once ETIM_WC_PLUGIN_DIR . 'includes/class-etim-sync-handler.php';
         require_once ETIM_WC_PLUGIN_DIR . 'includes/db/class-etim-db.php';
     }
 
@@ -119,6 +120,7 @@ final class ETIM_For_WooCommerce {
         ETIM_Product_Meta::get_instance();
         ETIM_Frontend_Filter::get_instance();
         ETIM_Bulk_Handler::get_instance();
+        ETIM_Sync_Handler::get_instance();
     }
     
     /**

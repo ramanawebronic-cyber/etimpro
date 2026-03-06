@@ -53,6 +53,7 @@ class ETIM_Admin_Settings {
     private function __construct() {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_init', [$this, 'redirect_visit_site']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
         add_action('wp_ajax_etim_test_connection', [$this, 'ajax_test_connection']);
         add_action('admin_post_etim_simple_export', [$this, 'handle_simple_export']);
@@ -67,14 +68,68 @@ class ETIM_Admin_Settings {
      */
     public function add_admin_menu() {
         add_menu_page(
-            __('ETIM Settings', 'etim-for-woocommerce'),
-            __('ETIM Settings', 'etim-for-woocommerce'),
+            __('ETIM Dashboard', 'etim-for-woocommerce'),
+            __('ETIM Dashboard', 'etim-for-woocommerce'),
             'manage_woocommerce',
             'etim-settings',
             [$this, 'render_settings_page'],
             'dashicons-tag',
             56
         );
+        add_submenu_page(
+            'etim-settings',
+            __('ETIM Dashboard', 'etim-for-woocommerce'),
+            __('ETIM Dashboard', 'etim-for-woocommerce'),
+            'manage_woocommerce',
+            'etim-settings',
+            [$this, 'render_settings_page']
+        );
+        add_submenu_page(
+            'etim-settings',
+            __('Configure ETIM', 'etim-for-woocommerce'),
+            __('Configure ETIM', 'etim-for-woocommerce'),
+            'manage_woocommerce',
+            'etim-configure',
+            [$this, 'render_settings_page']
+        );
+        add_submenu_page(
+            'etim-settings',
+            __('License Key', 'etim-for-woocommerce'),
+            __('License Key', 'etim-for-woocommerce'),
+            'manage_woocommerce',
+            'etim-license',
+            [$this, 'render_settings_page']
+        );
+        add_submenu_page(
+            'etim-settings',
+            __('Visit Site', 'etim-for-woocommerce'),
+            __('Visit Site', 'etim-for-woocommerce'),
+            'manage_woocommerce',
+            'etim-visit-site',
+            '__return_false'
+        );
+        add_submenu_page(
+            'etim-settings',
+            __('Visit Features', 'etim-for-woocommerce'),
+            __('Visit Features', 'etim-for-woocommerce'),
+            'manage_woocommerce',
+            'etim-visit-features',
+            '__return_false'
+        );
+    }
+    
+    /**
+     * Redirect visit site link
+     */
+    public function redirect_visit_site() {
+        if (isset($_GET['page']) && $_GET['page'] === 'etim-visit-site') {
+            wp_redirect(home_url());
+            exit;
+        }
+        if (isset($_GET['page']) && $_GET['page'] === 'etim-visit-features') {
+            wp_redirect('https://ramanawebronic-cyber.github.io/etimpro/');
+            exit;
+        }
     }
     
     /**
@@ -170,8 +225,8 @@ class ETIM_Admin_Settings {
      * Enqueue admin assets
      */
     public function enqueue_admin_assets($hook) {
-        // Only load on our settings page
-        if ($hook !== 'toplevel_page_etim-settings') {
+        // Only load on our settings and submenu pages
+        if (strpos($hook, 'etim-settings') === false && strpos($hook, 'etim-configure') === false && strpos($hook, 'etim-license') === false) {
             return;
         }
         
@@ -246,14 +301,25 @@ class ETIM_Admin_Settings {
         $mapped_classes_count = 0;
         $mapped_attributes_count = 0;
         $products_mapped_count = 0;
-        
+        $mapped_groups_count = 0;
+        $products_with_groups = 0;
+        $products_with_features = 0;
+
+        $table_groups = $wpdb->prefix . 'etim_product_groups';
+
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_classes'") === $table_classes) {
             $mapped_classes_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_classes");
             $products_mapped_count = $wpdb->get_var("SELECT COUNT(DISTINCT product_id) FROM $table_classes");
         }
-        
+
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_features'") === $table_features) {
             $mapped_attributes_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_features");
+            $products_with_features = (int) $wpdb->get_var("SELECT COUNT(DISTINCT product_id) FROM $table_features");
+        }
+
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_groups'") === $table_groups) {
+            $mapped_groups_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_groups");
+            $products_with_groups = (int) $wpdb->get_var("SELECT COUNT(DISTINCT product_id) FROM $table_groups");
         }
         
         $pending_mappings = max(0, $total_products - $products_mapped_count);
@@ -282,36 +348,111 @@ class ETIM_Admin_Settings {
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_classes'") === $table_classes) {
             $recent_mappings = $wpdb->get_results("
                 SELECT product_id, class_code, updated_at
-                FROM $table_classes 
-                ORDER BY updated_at DESC 
+                FROM $table_classes
+                ORDER BY updated_at DESC
                 LIMIT 5
             ");
         }
-        
+
+        // Dashboard KPIs: Health Score
+        $health_score = 0;
+        if ($total_products > 0) {
+            $mapping_pct = ($products_mapped_count / $total_products) * 100;
+            $feature_pct = ($mapped_classes_count > 0 && $mapped_attributes_count > 0)
+                ? min(100, ($mapped_attributes_count / max(1, $mapped_classes_count)) * 25)
+                : 0;
+            $health_score = round(($mapping_pct * 0.6) + ($feature_pct * 0.4));
+            $health_score = min(100, max(0, $health_score));
+        }
+
+        // Validation errors: products with class but missing features
+        $validation_errors = 0;
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_classes'") === $table_classes &&
+            $wpdb->get_var("SHOW TABLES LIKE '$table_features'") === $table_features) {
+            $validation_errors = (int) $wpdb->get_var(
+                "SELECT COUNT(DISTINCT c.product_id) FROM $table_classes c
+                 LEFT JOIN $table_features f ON c.product_id = f.product_id
+                 WHERE f.product_id IS NULL"
+            );
+        }
+
+        // Category Mapping Accuracy
+        $category_accuracy = [];
+        $product_cats = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => true,
+            'number' => 6,
+            'orderby' => 'count',
+            'order' => 'DESC',
+        ]);
+        if (!is_wp_error($product_cats) && !empty($product_cats)) {
+            foreach ($product_cats as $pcat) {
+                if ($pcat->slug === 'uncategorized') continue;
+                $cat_ids = get_posts([
+                    'post_type' => 'product',
+                    'numberposts' => -1,
+                    'fields' => 'ids',
+                    'post_status' => 'publish',
+                    'tax_query' => [['taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $pcat->term_id]],
+                ]);
+                $total_in_cat = count($cat_ids);
+                $mapped_in_cat = 0;
+                if ($total_in_cat > 0 && $wpdb->get_var("SHOW TABLES LIKE '$table_classes'") === $table_classes) {
+                    $ids_str = implode(',', array_map('intval', $cat_ids));
+                    $mapped_in_cat = (int) $wpdb->get_var("SELECT COUNT(DISTINCT product_id) FROM $table_classes WHERE product_id IN ($ids_str)");
+                }
+                $category_accuracy[] = [
+                    'name' => $pcat->name,
+                    'pct' => $total_in_cat > 0 ? round(($mapped_in_cat / $total_in_cat) * 100) : 0,
+                ];
+                if (count($category_accuracy) >= 4) break;
+            }
+        }
+
+        // Products with featured images
+        $products_with_images = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_thumbnail_id' AND pm.meta_value > 0
+             WHERE p.post_type = 'product' AND p.post_status = 'publish'"
+        );
+
+        $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'etim-settings';
+        $active_tab = 'tab-dashboard';
+        if ($current_page === 'etim-configure') $active_tab = 'tab-configure';
+        if ($current_page === 'etim-license') $active_tab = 'tab-license';
+
         ?>
         <div class="wrap etim-app-wrapper">
             <!-- Sidebar -->
-            <aside class="etim-sidebar">
+            <aside class="etim-sidebar" style="border-radius: 12px 0 0 12px;">
                 <div class="etim-sidebar-brand">
                     <img src="<?php echo esc_url($assets_url . 'webronic.png'); ?>" alt="Logo" class="etim-icon" />
                     <span>ETIM Integration</span>
                 </div>
                 <nav class="etim-nav">
-                    <a href="#dashboard" class="etim-nav-btn active" data-tab="tab-dashboard">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=etim-settings')); ?>" class="etim-nav-btn <?php echo $active_tab === 'tab-dashboard' ? 'active' : ''; ?>" data-tab="tab-dashboard">
                         <img src="<?php echo esc_url($assets_url . 'dashboard_icon.png'); ?>" alt="" class="etim-icon" /> Dashboard
                     </a>
-                    <a href="#configure" class="etim-nav-btn" data-tab="tab-configure">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=etim-configure')); ?>" class="etim-nav-btn <?php echo $active_tab === 'tab-configure' ? 'active' : ''; ?>" data-tab="tab-configure">
                         <img src="<?php echo esc_url($assets_url . 'configure-icon.png'); ?>" alt="" class="etim-icon" /> Configure ETIM
                     </a>
-                    <a href="#license" class="etim-nav-btn" data-tab="tab-license">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=etim-license')); ?>" class="etim-nav-btn <?php echo $active_tab === 'tab-license' ? 'active' : ''; ?>" data-tab="tab-license">
                         <img src="<?php echo esc_url($assets_url . 'license.png'); ?>" alt="" class="etim-icon" /> License Key
+                    </a>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=etim-visit-features')); ?>" class="etim-nav-btn" target="_blank">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.7;margin-right:2px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        Visit Features
+                    </a>
+                    <a href="<?php echo esc_url(home_url()); ?>" class="etim-nav-btn" target="_blank">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.7;margin-right:2px;"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        Visit Site
                     </a>
                 </nav>
             </aside>
             
-            <main class="etim-main">
+            <main class="etim-main" style="border-radius: 0 12px 12px 0; height: auto; min-height: 100%;">
                 <!-- DASHBOARD TAB -->
-                <section id="tab-dashboard" class="etim-tab active">
+                <section id="tab-dashboard" class="etim-tab <?php echo $active_tab === 'tab-dashboard' ? 'active' : ''; ?>">
                     <div class="etim-tab-header">
                         <h2><img src="<?php echo esc_url($assets_url . 'dashboard_icon.png'); ?>" alt="" class="etim-icon" /> Dashboard</h2>
                     </div>
@@ -330,7 +471,21 @@ class ETIM_Admin_Settings {
                                 <span class="etim-label">Client Secret:</span>
                                 <span class="etim-value"><?php echo esc_html($masked_key ?: 'Not Configured'); ?></span>
                                 <span class="etim-label">Last Synced:</span>
-                                <span class="etim-value etim-text-green">10:00 AM, <?php echo date('jS F Y'); ?></span>
+                                <?php $last_sync = get_option('etim_last_sync_time'); ?>
+                                <span class="etim-value etim-text-green"><?php echo $last_sync ? date_i18n('h:i A, jS F Y', strtotime($last_sync)) : 'Never'; ?></span>
+
+                                <span class="etim-label">ETIM Version:</span>
+                                <span class="etim-value" style="font-weight:600;"><?php echo esc_html(get_option('etim_current_version', 'ETIM-8.0')); ?></span>
+                                <span class="etim-label">API Version:</span>
+                                <span class="etim-value" style="font-weight:600;"><?php
+                                    // Extract version from API_BASE_URL (e.g., v2.0)
+                                    $api_url = ETIM_API::API_BASE_URL;
+                                    $api_version = 'v2.0';
+                                    if (preg_match('/\/(v[\d.]+)$/', $api_url, $m)) {
+                                        $api_version = $m[1];
+                                    }
+                                    echo esc_html($api_version);
+                                ?></span>
                             </div>
                         </div>
 
@@ -366,70 +521,109 @@ class ETIM_Admin_Settings {
                             </div>
                         </div>
 
-                        <!-- Sync Summary -->
-                        <div class="etim-panel">
-                            <h4><img src="<?php echo esc_url($assets_url . 'sync.png'); ?>" alt="" class="etim-icon" /> ETIM Synchronization Summary</h4>
-                            <div class="etim-sync-flex">
-                                <div class="etim-sync-details">
-                                    <p><strong>Recent Sync:</strong> 10:00 AM, <?php echo date('jS F Y'); ?></p>
-                                    <p><strong>Products Synced:</strong> <?php echo number_format_i18n($total_products); ?> / <?php echo number_format_i18n($total_products); ?> (100%)</p>
-                                    <p><strong>Sync Errors:</strong> 0</p>
+                        <!-- Mapping Health & Performance -->
+                        <div class="etim-panel etim-health-perf">
+                            <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Mapping Health &amp; Performance</h4>
+                            <div class="etim-hp-inner">
+                                <!-- Gauge -->
+                                <div class="etim-hp-gauge">
+                                    <div class="etim-gauge-container">
+                                        <svg viewBox="0 0 200 130" class="etim-gauge-svg">
+                                            <defs>
+                                                <linearGradient id="etimGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#ef4444"/>
+                                                    <stop offset="40%" stop-color="#eab308"/>
+                                                    <stop offset="100%" stop-color="#22c55e"/>
+                                                </linearGradient>
+                                            </defs>
+                                            <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#e5e7eb" stroke-width="16" stroke-linecap="round"/>
+                                            <path class="etim-gauge-fill" d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#etimGaugeGrad)" stroke-width="16" stroke-linecap="round" stroke-dasharray="251.33" stroke-dashoffset="251.33" data-pct="<?php echo intval($health_score); ?>"/>
+                                        </svg>
+                                        <div class="etim-gauge-value"><span class="etim-gauge-pct" data-target="<?php echo intval($health_score); ?>">0</span>%</div>
+                                    </div>
+                                    <div class="etim-gauge-label">Overall Mapping Health</div>
+                                    <div class="etim-gauge-sublabel">Mapping coverage and data integrity<br>score across all products</div>
                                 </div>
-                                <div class="etim-sync-chart-placeholder">
-                                    <svg viewBox="0 0 200 100" class="etim-line-chart" preserveAspectRatio="none"><path fill="rgba(72,136,232,0.1)" stroke="#4888E8" stroke-width="2" d="M0 80 Q 20 100, 40 60 T 80 80 T 130 30 T 170 80 L 200 80 L 200 100 L 0 100 Z"/><circle cx="40" cy="60" r="3" fill="#4888E8"/><circle cx="80" cy="80" r="3" fill="#4888E8"/><circle cx="130" cy="30" r="3" fill="#4888E8"/></svg>
+                                <!-- KPIs -->
+                                <div class="etim-hp-kpis">
+                                    <h5>Mapping KPIs</h5>
+                                    <div class="etim-kpi-item">
+                                        <div class="etim-kpi-num" style="color:#22c55e;"><?php echo intval($products_mapped_count); ?></div>
+                                        <div class="etim-kpi-info">
+                                            <div class="etim-kpi-title">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#dcfce7"/><path d="M8 12l3 3 5-5" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                <strong>Mapped Products</strong>
+                                            </div>
+                                            <span class="etim-kpi-desc">Successfully mapped via ETIM recognition</span>
+                                        </div>
+                                    </div>
+                                    <div class="etim-kpi-item">
+                                        <div class="etim-kpi-num" style="color:#64748b;"><?php echo intval($pending_mappings); ?></div>
+                                        <div class="etim-kpi-info">
+                                            <div class="etim-kpi-title">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#f1f5f9"/><path d="M12 8v4l3 3" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                                <strong>Unmapped Products</strong>
+                                            </div>
+                                            <span class="etim-kpi-desc">Products that are not yet mapped to ETIM classes</span>
+                                        </div>
+                                    </div>
+                                    <div class="etim-kpi-item">
+                                        <div class="etim-kpi-num" style="color:#f59e0b;"><?php echo intval($validation_errors); ?></div>
+                                        <div class="etim-kpi-info">
+                                            <div class="etim-kpi-title">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/></svg>
+                                                <strong>Validation Errors</strong>
+                                            </div>
+                                            <span class="etim-kpi-desc">Failed final data validation checks</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Category Mapping Accuracy -->
+                                <div class="etim-hp-cats">
+                                    <h5>Category Mapping Accuracy</h5>
+                                    <?php if (!empty($category_accuracy)): ?>
+                                        <?php foreach ($category_accuracy as $cat_item): ?>
+                                        <div class="etim-cat-row">
+                                            <span class="etim-cat-name"><?php echo esc_html($cat_item['name']); ?></span>
+                                            <div class="etim-cat-bar-bg">
+                                                <div class="etim-cat-bar-fill" style="width:<?php echo intval($cat_item['pct']); ?>%;"></div>
+                                            </div>
+                                            <span class="etim-cat-pct"><?php echo intval($cat_item['pct']); ?>%</span>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <p style="color:#94a3b8;font-size:13px;">No category data available yet.</p>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Data Quality -->
-                        <div class="etim-panel">
-                            <h4><img src="<?php echo esc_url($assets_url . 'account-icon.png'); ?>" alt="" class="etim-icon" /> Data Quality Assessment</h4>
+                        <div class="etim-panel etim-quality">
+                            <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Data Quality Assessment</h4>
                             <div class="etim-progress-item">
                                 <div class="etim-pi-label">Products with Complete ETIM Data: <?php echo intval($products_mapped_count); ?> / <?php echo intval($total_products); ?> (<?php echo $total_products > 0 ? round(($products_mapped_count/$total_products)*100) : 0; ?>%)</div>
                                 <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:<?php echo $total_products > 0 ? round(($products_mapped_count/$total_products)*100) : 0; ?>%;"></div></div>
                             </div>
                             <div class="etim-progress-item">
-                                <div class="etim-pi-label">Complete Images: <?php echo intval($total_products); ?> / <?php echo intval($total_products); ?></div>
-                                <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:100%;"></div></div>
+                                <div class="etim-pi-label">Complete Groups: <?php echo intval($products_with_groups); ?> / <?php echo intval($total_products); ?> (<?php echo $total_products > 0 ? round(($products_with_groups/$total_products)*100) : 0; ?>%)</div>
+                                <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:<?php echo $total_products > 0 ? round(($products_with_groups/$total_products)*100) : 0; ?>%;"></div></div>
                             </div>
                             <div class="etim-progress-item">
-                                <div class="etim-pi-label">Complete Features: <?php echo intval($mapped_classes_count); ?> / <?php echo intval($total_products); ?></div>
-                                <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:<?php echo $total_products > 0 ? round(($mapped_classes_count/$total_products)*100) : 0; ?>%;"></div></div>
+                                <div class="etim-pi-label">Complete Classes: <?php echo intval($products_mapped_count); ?> / <?php echo intval($total_products); ?> (<?php echo $total_products > 0 ? round(($products_mapped_count/$total_products)*100) : 0; ?>%)</div>
+                                <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:<?php echo $total_products > 0 ? round(($products_mapped_count/$total_products)*100) : 0; ?>%;"></div></div>
+                            </div>
+                            <div class="etim-progress-item">
+                                <div class="etim-pi-label">Complete Features: <?php echo intval($products_with_features); ?> / <?php echo intval($total_products); ?> (<?php echo $total_products > 0 ? round(($products_with_features/$total_products)*100) : 0; ?>%)</div>
+                                <div class="etim-pi-bar"><div class="etim-pi-fill" style="width:<?php echo $total_products > 0 ? round(($products_with_features/$total_products)*100) : 0; ?>%;"></div></div>
                             </div>
                         </div>
 
-                        <!-- Top Classes Chart -->
-                        <div class="etim-panel etim-chart">
-                            <h4><img src="<?php echo esc_url($assets_url . 'map_class.png'); ?>" alt="" class="etim-icon" /> Top ETIM Classes Assigne by you</h4>
-                            <div class="etim-top-classes-chart">
-                                <?php 
-                                if (!empty($top_classes)) {
-                                    foreach ($top_classes as $index => $tc) {
-                                        if ($index >= 10) break;
-                                        $height_pct = ($tc->p_count / $max_class_count) * 100;
-                                        if ($height_pct > 0 && $height_pct < 5) $height_pct = 5;
-                                        ?>
-                                        <div class="etim-tcc-col">
-                                            <div class="etim-tcc-val"><?php echo intval($tc->p_count); ?></div>
-                                            <div class="etim-tcc-bar-wrap" title="<?php echo esc_attr($tc->class_code . ': ' . $tc->p_count . ' products mapped'); ?>">
-                                                <div class="etim-tcc-bar" style="height: <?php echo esc_attr($height_pct); ?>%;"></div>
-                                            </div>
-                                            <div class="etim-tcc-label-wrap">
-                                                <div class="etim-tcc-label"><?php echo esc_html($tc->class_code); ?></div>
-                                            </div>
-                                        </div>
-                                        <?php
-                                    }
-                                } else {
-                                    echo '<p style="text-align:center; width: 100%; color:#94a3b8;">No data yet.</p>';
-                                }
-                                ?>
-                            </div>
-                        </div>
+
 
                         <!-- Recent Activity -->
-                        <div class="etim-panel">
-                            <h4><img src="<?php echo esc_url($assets_url . 'configure-icon.png'); ?>" alt="" class="etim-icon" /> Recent Mapping Activity</h4>
+                        <div class="etim-panel etim-activity">
+                            <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;"><circle cx="12" cy="12" r="10" stroke="#4888E8" stroke-width="2"/><path d="M12 6v6l4 2" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Recent Mapping Activity</h4>
                             <ul class="etim-activity-list">
                                 <?php 
                                 if (!empty($recent_mappings)) {
@@ -462,7 +656,7 @@ class ETIM_Admin_Settings {
                                             <?php else: ?>
                                             <span class="etim-btn-blue-outline" style="padding: 4px 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; opacity:0.5; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                                                <span class="etim-pro-badge">PRO</span>
+                                                <img src="<?php echo esc_url($assets_url . 'premium.png'); ?>" alt="Premium" style="height: 16px; width: auto;" />
                                             </span>
                                             <?php endif; ?>
                                         </li>
@@ -478,7 +672,7 @@ class ETIM_Admin_Settings {
                 </section>
 
                 <!-- CONFIGURE ETIM TAB -->
-                <section id="tab-configure" class="etim-tab">
+                <section id="tab-configure" class="etim-tab <?php echo $active_tab === 'tab-configure' ? 'active' : ''; ?>">
                     <div class="etim-tab-header">
                         <h2><img src="<?php echo esc_url($assets_url . 'configure-icon.png'); ?>" alt="" class="etim-icon" /> Configure ETIM</h2>
                         <p>This module provides an interface to configure ETIM standards within your WordPress plugin</p>
@@ -517,8 +711,9 @@ class ETIM_Admin_Settings {
                                     <label>Sync</label>
                                     <p>Automatically synchronize product data with the remote ETIM database.</p>
                                 </div>
-                                <div class="etim-f-right" style="justify-content: flex-end;">
-                                    <button type="button" class="etim-circular-btn"><img src="<?php echo esc_url($assets_url . 'sync.png'); ?>" style="width: 18px; height: 18px;" alt="Sync" class="etim-icon" /></button>
+                                <div class="etim-f-right" style="justify-content: flex-end; align-items: center; gap: 10px;">
+                                    <span id="etim-sync-status" style="font-size: 13px; font-weight: 500; display: none;"></span>
+                                    <button type="button" id="etim-sync-btn" style="background: transparent; border: none; color: #4888E8; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px;"><img src="<?php echo esc_url($assets_url . 'sync.png'); ?>" style="width: 18px; height: 18px;" alt="Sync" /> <span>Sync Now</span></button>
                                 </div>
                             </div>
 
@@ -527,7 +722,7 @@ class ETIM_Admin_Settings {
                                 <div class="etim-f-left">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                                         <label style="margin: 0;">Filter</label>
-                                        <?php if (!$can_filter): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                        <?php if (!$can_filter): ?><img src="<?php echo esc_url($assets_url . 'premium.png'); ?>" alt="Premium" style="height: 22px; width: auto;" /><?php endif; ?>
                                     </div>
                                     <p>Enable faceted filtering for mapped ETIM classes on your store frontend.</p>
                                 </div>
@@ -538,7 +733,9 @@ class ETIM_Admin_Settings {
                                         <span class="slider"></span>
                                     </label>
                                     <input type="text" id="etim-filter-color-text" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" placeholder="#147A74" style="width: 90px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 8px; font-family: monospace;" <?php echo !$can_filter ? 'disabled' : ''; ?> />
-                                    <input type="color" id="etim-filter-color-picker" title="Filter Highlight Color" name="<?php echo esc_attr(self::OPTION_FILTER_COLOR); ?>" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" style="width: 36px; height: 36px; padding: 0; cursor: pointer; border: none; background: transparent; border-radius: 50%; clip-path: circle(50%);" <?php echo !$can_filter ? 'disabled' : ''; ?> />
+                                    <div style="position:relative; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1px solid #cbd5e1; flex-shrink:0;">
+                                        <input type="color" id="etim-filter-color-picker" title="Filter Highlight Color" name="<?php echo esc_attr(self::OPTION_FILTER_COLOR); ?>" value="<?php echo esc_attr(get_option(self::OPTION_FILTER_COLOR, '#147A74')); ?>" style="position:absolute; top:-10px; left:-10px; width: 56px; height: 56px; padding: 0; margin: 0; cursor: pointer; border: none; background: transparent;" <?php echo !$can_filter ? 'disabled' : ''; ?> />
+                                    </div>
                                 </div>
                             </div>
 
@@ -561,15 +758,23 @@ class ETIM_Admin_Settings {
                                 <div class="etim-f-left">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                                         <label style="margin: 0;">Import Data</label>
-                                        <?php if (!$can_import): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                        <?php if (!$can_import): ?><img src="<?php echo esc_url($assets_url . 'premium.png'); ?>" alt="Premium" style="height: 22px; width: auto;" /><?php endif; ?>
                                     </div>
-                                    <p>Upload a structured CSV file to bulk assign ETIM classes and features to products.</p>
+                                    <p>Upload a structured CSV or XML file to bulk assign ETIM classes and features to products.</p>
                                 </div>
                                 <div class="etim-f-right" style="justify-content: flex-end;">
                                     <?php if ($can_import): ?>
-                                    <button type="button" class="etim-btn-blue-outline etim-w-auto" onclick="document.getElementById('real-import-file').click();">Upload CSV File</button>
+                                    <div id="etim-drop-zone" style="border: 2px dashed #e2e8f0; border-radius: 12px; padding: 20px 10px; text-align: center; cursor: pointer; transition: all 0.2s ease; background: transparent; width: 100%; max-width: 250px;" onclick="document.getElementById('real-import-file').click();">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin-bottom: 4px; opacity: 0.3;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                        <p id="etim-drop-text" style="margin: 0; color: #cbd5e1; font-size: 13px;">Drag & drop your CSV or XML<br/>file here, or browse</p>
+                                        <p style="margin: 4px 0 0; color: #f1f5f9; font-size: 11px;">Supported formats: .csv, .xml</p>
+                                    </div>
                                     <?php else: ?>
-                                    <button type="button" class="etim-btn-blue-outline etim-w-auto" disabled style="opacity:0.5;cursor:not-allowed;">Upload CSV File</button>
+                                    <div style="border: 2px dashed #f1f5f9; border-radius: 12px; padding: 20px 10px; text-align: center; opacity: 0.5; cursor: not-allowed; background: transparent; width: 100%; max-width: 250px;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="margin-bottom: 4px; opacity: 0.3;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                        <p style="margin: 0; color: #cbd5e1; font-size: 13px;">Drag & drop your CSV or XML<br/>file here, or browse</p>
+                                        <p style="margin: 4px 0 0; color: #f1f5f9; font-size: 11px;">Supported formats: .csv, .xml</p>
+                                    </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -579,14 +784,14 @@ class ETIM_Admin_Settings {
                                 <div class="etim-f-left">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                                         <label style="margin: 0;">Export Data</label>
-                                        <?php if (!$can_export): ?><span class="etim-pro-badge">PRO</span><?php endif; ?>
+                                        <?php if (!$can_export): ?><img src="<?php echo esc_url($assets_url . 'premium.png'); ?>" alt="Premium" style="height: 22px; width: auto;" /><?php endif; ?>
                                     </div>
                                     <p>Download assigned ETIM product configurations to CSV or XML format.</p>
                                 </div>
                                 <div class="etim-f-right" style="justify-content: flex-end; gap: 8px; display: flex; flex-wrap: wrap;">
                                     <?php if ($can_export): ?>
-                                    <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_simple_export')); ?>" class="etim-btn-blue etim-w-auto" style="text-decoration:none;">Download CSV</a>
-                                    <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_xml_export_all')); ?>" class="etim-btn-blue-outline etim-w-auto" style="text-decoration:none;">Download XML</a>
+                                    <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_simple_export')); ?>" class="etim-btn-blue etim-w-auto" style="text-decoration:none;" onclick="var t=this; var old=t.innerHTML; t.innerHTML='<svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' style=\'margin-right:6px;animation:spin 1s linear infinite\'><circle cx=\'12\' cy=\'12\' r=\'10\' stroke=\'currentColor\' stroke-width=\'2\' stroke-dasharray=\'31.4 31.4\' stroke-linecap=\'round\'/></svg> Downloading...'; t.style.pointerEvents='none'; t.style.opacity='0.8'; setTimeout(function(){ t.innerHTML=old; t.style.pointerEvents='auto'; t.style.opacity='1'; if(typeof etimShowToast==='function') etimShowToast('CSV exported successfully!','success'); }, 3000);">Download CSV</a>
+                                    <a href="<?php echo esc_url(admin_url('admin-post.php?action=etim_xml_export_all')); ?>" class="etim-btn-blue-outline etim-w-auto" style="text-decoration:none;" onclick="var t=this; var old=t.innerHTML; t.innerHTML='<svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' style=\'margin-right:6px;animation:spin 1s linear infinite\'><circle cx=\'12\' cy=\'12\' r=\'10\' stroke=\'currentColor\' stroke-width=\'2\' stroke-dasharray=\'31.4 31.4\' stroke-linecap=\'round\'/></svg> Downloading...'; t.style.pointerEvents='none'; t.style.opacity='0.8'; setTimeout(function(){ t.innerHTML=old; t.style.pointerEvents='auto'; t.style.opacity='1'; if(typeof etimShowToast==='function') etimShowToast('XML exported successfully!','success'); }, 3000);">Download XML</a>
                                     <?php else: ?>
                                     <span class="etim-btn-blue etim-w-auto" style="opacity:0.5;cursor:not-allowed;">Download CSV</span>
                                     <span class="etim-btn-blue-outline etim-w-auto" style="opacity:0.5;cursor:not-allowed;">Download XML</span>
@@ -621,13 +826,13 @@ class ETIM_Admin_Settings {
                         <form id="etim_import_form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="display:none;">
                             <?php wp_nonce_field('etim_simple_import_nonce'); ?>
                             <input type="hidden" name="action" value="etim_simple_import">
-                            <input type="file" id="real-import-file" name="import_file" accept=".csv" onchange="if(this.value){ document.getElementById('etim_import_form').submit(); }">
+                            <input type="file" id="real-import-file" name="import_file" accept=".csv,.xml" onchange="if(this.value){ var dz=document.getElementById('etim-drop-zone'); var dt=document.getElementById('etim-drop-text'); if(dz){ dz.style.borderColor='#4888E8'; dz.style.background='#eff6ff'; } if(dt){ dt.innerHTML='<svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' style=\'margin-right:6px;vertical-align:-3px;animation:spin 1s linear infinite\'><circle cx=\'12\' cy=\'12\' r=\'10\' stroke=\'#4888E8\' stroke-width=\'2\' stroke-dasharray=\'31.4 31.4\' stroke-linecap=\'round\'/></svg> Uploading file...'; } document.getElementById('etim_import_form').submit(); }">
                         </form>
                     </div>
                 </section>
 
                 <!-- LICENSE KEY TAB -->
-                <section id="tab-license" class="etim-tab">
+                <section id="tab-license" class="etim-tab <?php echo $active_tab === 'tab-license' ? 'active' : ''; ?>">
                     <?php
                     $license_manager = ETIM_License_Manager::get_instance();
                     $lic_info = $license_manager->get_license_info();
@@ -636,10 +841,29 @@ class ETIM_Admin_Settings {
                     $plan_code = $feature_access->get_current_plan();
                     $product_count = $feature_access->get_assigned_product_count();
                     $product_limit = $feature_access->get_product_limit();
-                    $product_limit_display = ($product_limit === PHP_INT_MAX) ? '&infin;' : number_format_i18n($product_limit);
+                    $product_limit_display = ($product_limit === PHP_INT_MAX) ? __('Unlimited', 'etim-for-woocommerce') : number_format_i18n($product_limit);
                     $product_pct = ($product_limit !== PHP_INT_MAX && $product_limit > 0) ? min(100, round(($product_count / $product_limit) * 100)) : 0;
                     $features_list = $feature_access->get_plan_features_list();
                     $is_auto_expired = get_option('etim_lic_auto_expired', false);
+
+                    // Plan color mapping
+                    $plan_colors = [
+                        ETIM_License_Manager::PLAN_MANUFACTURER => ['primary' => '#1e293b', 'bg' => '#f8fafc', 'border' => '#e2e8f0', 'light' => '#f1f5f9'],
+                        ETIM_License_Manager::PLAN_DISTRIBUTOR  => ['primary' => '#4888E8', 'bg' => '#eff6ff', 'border' => '#bfdbfe', 'light' => '#dbeafe'],
+                        ETIM_License_Manager::PLAN_ERP          => ['primary' => '#ca8a04', 'bg' => '#fefce8', 'border' => '#fde68a', 'light' => '#fef9c3'],
+                    ];
+                    $active_colors = $plan_colors[$plan_code] ?? $plan_colors[ETIM_License_Manager::PLAN_MANUFACTURER];
+
+                    // Plan image mapping
+                    $plan_images = [
+                        ETIM_License_Manager::PLAN_MANUFACTURER => 'free.png',
+                        ETIM_License_Manager::PLAN_DISTRIBUTOR  => 'standard.png',
+                        ETIM_License_Manager::PLAN_ERP          => 'pro.png',
+                    ];
+                    $plan_image = $plan_images[$plan_code] ?? 'free.png';
+
+                    // Days remaining
+                    $days_remaining = isset($lic_info['days_remaining']) ? (int) $lic_info['days_remaining'] : 0;
                     ?>
 
                     <!-- Header -->
@@ -651,70 +875,91 @@ class ETIM_Admin_Settings {
                             <h2 class="etim-lk-title">License Key</h2>
                             <p class="etim-lk-subtitle">Activate your License and Manage your ETIM Subscription</p>
                         </div>
-                        <div>
-                            <?php if ($is_active): ?>
-                                <span class="etim-lk-status-pill etim-lk-status-active">Active</span>
-                            <?php elseif ($is_auto_expired): ?>
-                                <span class="etim-lk-status-pill etim-lk-status-expired">Expired</span>
-                            <?php else: ?>
-                                <span class="etim-lk-status-pill etim-lk-status-free">Free</span>
-                            <?php endif; ?>
-                        </div>
                     </div>
 
                     <?php if ($is_active): ?>
-                    <!-- Active License Details -->
-                    <div class="etim-lk-card" style="background: linear-gradient(145deg, #ffffff, #f8fafc); border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                        <div class="etim-lk-card-header" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 24px;">
-                            <div style="display: flex; align-items: center; gap: 16px;">
-                                <div style="background: #e0e7ff; padding: 12px; border-radius: 12px;">
-                                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4888E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </div>
+                    <!-- ============ ACTIVE LICENSE - Clean Plan Card ============ -->
+                    <div class="etim-lk-plan-hero" style="border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; padding: 0; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 24px;">
+                        <div style="padding: 28px 32px;">
+                            <!-- Plan Header Row -->
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px;">
                                 <div>
-                                    <h3 class="etim-lk-card-title" style="font-size: 20px; color: #1e293b; margin-bottom: 4px;"><?php echo esc_html($lic_info['plan_name']); ?> Plan</h3>
-                                    <p class="etim-lk-card-desc" style="margin: 0;">Valid until <?php echo esc_html($lic_info['expiry_formatted']); ?></p>
+                                    <div style="font-size: 20px; font-weight: 800; color: #0f172a; line-height: 1.2;"><?php echo esc_html($lic_info['plan_name']); ?> Plan</div>
+                                    <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Your Subscription Ends on <?php echo esc_html($lic_info['expiry_formatted']); ?></div>
                                 </div>
-                            </div>
-                            <span class="etim-lk-status-pill etim-lk-status-active" style="background: #10b981; color: white;">Active</span>
-                        </div>
-
-                        <div class="etim-lk-detail-grid" style="gap: 20px;">
-                            <div class="etim-lk-detail-item" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-                                <span class="etim-lk-detail-label">License Key</span>
-                                <span class="etim-lk-detail-value" id="etim-lic-masked-key" style="font-family: monospace; color: #4888E8; font-size: 16px;"><?php echo esc_html($lic_info['masked_key']); ?></span>
-                            </div>
-                            <div class="etim-lk-detail-item" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-                                <span class="etim-lk-detail-label">Status</span>
-                                <span class="etim-lk-detail-value" style="color:#10b981;font-weight:700; font-size: 16px;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:-4px;margin-right:4px;"><circle cx="12" cy="12" r="10" stroke="#10b981" stroke-width="2"/><path d="M8 12l3 3 5-5" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span style="display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                     Active
                                 </span>
                             </div>
-                        </div>
 
-                        <!-- Product Usage -->
-                        <div style="margin-top:24px;padding: 24px;background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <span style="font-size:14px;font-weight:700;color:#1e293b;">Product Usage</span>
-                                <span style="font-size:14px;font-weight:700;color:#475569;"><?php echo number_format_i18n($product_count); ?> <span style="font-weight:400; color:#94a3b8;">/ <?php echo $product_limit_display; ?></span></span>
+                            <!-- License Key & Product Usage Row -->
+                            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                                <!-- License Key -->
+                                <div style="flex: 1; padding: 16px 20px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                    <div style="font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">License Key</div>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span id="etim-lic-key-display" style="font-family: monospace; font-size: 14px; font-weight: 600; color: #334155; letter-spacing: 0.3px;"><?php echo esc_html($lic_info['masked_key']); ?></span>
+                                        <button type="button" id="etim-toggle-key-visibility" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center;" title="Show/Hide License Key">
+                                            <img id="etim-key-toggle-icon" src="<?php echo esc_url($assets_url . 'open.png'); ?>" style="width: 18px; height: 18px; opacity: 0.5; transition: opacity 0.2s;" alt="Toggle" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Product Usage -->
+                                <div style="flex: 1; padding: 16px 20px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                    <div style="font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">Product Usage</div>
+                                    <?php if ($product_limit !== PHP_INT_MAX): ?>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                                            <div style="width: <?php echo esc_attr($product_pct); ?>%; height: 100%; border-radius: 4px; background: <?php echo $product_pct >= 90 ? '#ef4444' : '#4888E8'; ?>; transition: width 0.3s;"></div>
+                                        </div>
+                                        <span style="font-size: 14px; font-weight: 700; color: #334155; white-space: nowrap;"><?php echo number_format_i18n($product_count); ?> / <?php echo esc_html($product_limit_display); ?></span>
+                                    </div>
+                                    <?php else: ?>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 8px; background: linear-gradient(90deg, #4888E8, #22c55e); border-radius: 4px;"></div>
+                                        <img src="<?php echo esc_url($assets_url . 'unlimited.png'); ?>" alt="Unlimited" style="width: 28px; height: 28px; object-fit: contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';" />
+                                        <span style="font-size: 20px; font-weight: 700; color: #334155; display: none;">&infin;</span>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                            <div class="etim-pi-bar" style="height:10px; background: #e2e8f0; border-radius: 5px;">
-                                <div class="etim-pi-fill" style="width:<?php echo esc_attr($product_pct); ?>%; border-radius: 5px; background: <?php echo $product_pct >= 90 ? '#ef4444' : 'linear-gradient(90deg, #4888E8, #3b82f6)'; ?>;"></div>
-                            </div>
-                            <?php if ($product_limit !== PHP_INT_MAX && $product_pct >= 80): ?>
-                            <p style="margin:12px 0 0;font-size:13px;color:#ef4444; font-weight: 500;">You're approaching your product limit. <a href="<?php echo esc_url($feature_access->get_upgrade_url()); ?>" target="_blank" style="color:#4888E8;text-decoration:underline;">Upgrade</a> for more capacity.</p>
-                            <?php endif; ?>
-                        </div>
 
-                        <div style="margin-top:24px; text-align: right;">
-                            <button type="button" class="etim-btn-danger" id="etim-deactivate-license" style="background: transparent;">
-                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style="margin-right:6px;"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                                Deactivate License
-                            </button>
+                            <!-- Deactivate Button -->
+                            <div>
+                                <button type="button" class="etim-btn-danger" id="etim-deactivate-license" style="background: transparent; border: 2px solid #fecaca; color: #ef4444; border-radius: 8px; padding: 10px 28px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                                    Deactivate License
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    <script>
+                    (function(){
+                        var toggleBtn = document.getElementById('etim-toggle-key-visibility');
+                        var keyDisplay = document.getElementById('etim-lic-key-display');
+                        var toggleIcon = document.getElementById('etim-key-toggle-icon');
+                        if (!toggleBtn || !keyDisplay) return;
+                        var maskedKey = keyDisplay.textContent;
+                        var fullKey = '<?php echo esc_js($license_manager->get_full_license_key()); ?>';
+                        var isHidden = true;
+                        toggleBtn.addEventListener('click', function(){
+                            if (isHidden) {
+                                toggleIcon.src = '<?php echo esc_url($assets_url . 'hide.png'); ?>';
+                                toggleIcon.style.opacity = '0.8';
+                                keyDisplay.textContent = fullKey;
+                            } else {
+                                toggleIcon.src = '<?php echo esc_url($assets_url . 'open.png'); ?>';
+                                toggleIcon.style.opacity = '0.5';
+                                keyDisplay.textContent = maskedKey;
+                            }
+                            isHidden = !isHidden;
+                        });
+                    })();
+                    </script>
+
                     <?php else: ?>
-                    <!-- Activation Form -->
+                    <!-- ============ NO ACTIVE LICENSE - Activation Form Only ============ -->
                     <div class="etim-lk-card">
                         <h3 class="etim-lk-card-title">Enter Your License Key</h3>
                         <p class="etim-lk-card-desc">Enter your License Key below to Activate the Plugin and Unlock ETIM Features</p>
@@ -725,131 +970,115 @@ class ETIM_Admin_Settings {
                             <button type="button" class="etim-lk-btn-activate" id="etim-activate-license">Activate License</button>
                         </div>
                         <div id="etim-lic-message" class="etim-lic-message" style="display:none;"></div>
-
-                        <?php if (!$is_active): ?>
-                        <!-- Free plan product usage -->
-                        <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                <span style="font-size:13px;font-weight:600;color:#0f172a;">Product Usage (Free Plan)</span>
-                                <span style="font-size:13px;font-weight:600;color:#475569;"><?php echo number_format_i18n($product_count); ?> / <?php echo $product_limit_display; ?></span>
-                            </div>
-                            <div class="etim-pi-bar" style="height:8px;">
-                                <div class="etim-pi-fill" style="width:<?php echo esc_attr($product_pct); ?>%;<?php echo $product_pct >= 90 ? 'background:#ef4444;' : ''; ?>"></div>
-                            </div>
-                        </div>
-                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
 
-                    <!-- Feature Access Table -->
-                    <div class="etim-lk-card" style="margin-bottom:28px;">
-                        <h3 class="etim-lk-card-title" style="margin-bottom:20px; font-size: 18px;">Your Plan Features</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                            <?php foreach ($features_list as $feature): ?>
-                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid <?php echo $feature['included'] ? '#bfdbfe' : '#e2e8f0'; ?>; border-radius: 8px; background: <?php echo $feature['included'] ? '#eff6ff' : '#f8fafc'; ?>;">
-                                <span style="font-size: 14px; font-weight: 600; color: <?php echo $feature['included'] ? '#1e3a8a' : '#64748b'; ?>;"><?php echo esc_html($feature['name']); ?></span>
-                                <div>
-                                    <?php if ($feature['included']): ?>
-                                        <?php if (isset($feature['value'])): ?>
-                                            <span style="background: #4888E8; color: white; padding: 4px 10px; border-radius: 12px; font-weight: 700; font-size: 12px;"><?php echo esc_html($feature['value']); ?></span>
-                                        <?php else: ?>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#4888E8"/><path d="M8 12l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <?php if (isset($feature['value'])): ?>
-                                            <span style="color:#94a3b8;font-weight:600;font-size:13px;"><?php echo esc_html($feature['value']); ?></span>
-                                        <?php else: ?>
-                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#e2e8f0"/><rect x="5" y="11" width="14" height="11" rx="2" fill="#94a3b8" transform="scale(0.6) translate(7.5, 2)"/><path d="M9.5 11V9a2.5 2.5 0 015 0v2" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/></svg>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <!-- Available Plans -->
+                    <!-- Available Plans (always shown) -->
                     <div class="etim-lk-plans-section">
                         <h3 class="etim-lk-plans-title">Available Plans</h3>
                         <p class="etim-lk-plans-subtitle">Choose the plan that best fits your ETIM integration needs</p>
                         <div class="etim-lk-plans-grid">
                             <!-- Manufacturer Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($plan_code <= ETIM_License_Manager::PLAN_MANUFACTURER && !$is_active) || ($is_active && $plan_code === ETIM_License_Manager::PLAN_MANUFACTURER) ? 'etim-lk-plan-active' : ''; ?>">
-                                <div class="etim-lk-plan-top">
-                                    <img src="<?php echo esc_url($assets_url . 'free.png'); ?>" alt="Manufacturer" class="etim-lk-plan-img" />
-                                    <h4 class="etim-lk-plan-name">Manufacturer</h4>
-                                    <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">$299</span>
-                                        <span class="etim-lk-price-period">/year</span>
-                                    </div>
-                                    <p class="etim-lk-plan-desc">Perfect for manufacturers getting started with ETIM classification</p>
+                            <div class="etim-lk-plan-card" style="border-color: #e2e8f0; position: relative;">
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <img src="<?php echo esc_url($assets_url . 'free.png'); ?>" alt="Manufacturer" style="height: 60px; object-fit: contain;" />
                                 </div>
+                                <h4 class="etim-lk-plan-name" style="color: black; font-size: 24px; font-weight: 800; margin: 0 0 8px;">Manufacturer</h4>
+                                <p class="etim-lk-plan-desc" style="margin: 0 0 20px;">Best for manufacturers getting started with ETIM classification</p>
+
+                                <div style="margin-bottom: 8px; display: flex; align-items: baseline;">
+                                    <span style="font-size: 36px; font-weight: 800; color: black; line-height: 1;">$299</span>
+                                    <span style="font-size: 14px; font-weight: 600; color: #64748b; margin-left: 4px;">/ year</span>
+                                </div>
+                                <div style="margin-bottom: 24px; font-size: 13px; font-weight: 600; color: #94a3b8; display: flex; align-items: center; gap: 8px;">
+                                    <span style="text-decoration: line-through;">$599</span>
+                                    <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 11px;">50% OFF</span>
+                                </div>
+
                                 <ul class="etim-lk-feature-list">
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Group & Class Assignment</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Dynamic Feature Generation</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Up to 5 Products</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Assign ETIM data to up to 5 products</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Dynamic Feature Generation</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> CSV Import support</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Maximum 1 website license</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Bulk assignment: 10 products/batch</li>
                                 </ul>
-                                <div class="etim-lk-plan-btn-wrap">
+
+                                <div class="etim-lk-plan-btn-wrap" style="margin-top: 10px;">
                                     <?php if (($plan_code <= ETIM_License_Manager::PLAN_MANUFACTURER && !$is_active) || ($is_active && $plan_code === ETIM_License_Manager::PLAN_MANUFACTURER)): ?>
-                                        <span class="etim-lk-btn-current">Current Plan</span>
+                                        <span class="etim-lk-btn-current" style="background: black; color: white;">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_MANUFACTURER )); ?>" target="_blank" class="etim-lk-btn-upgrade">Get Started</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_MANUFACTURER )); ?>" target="_blank" class="etim-lk-btn-upgrade" style="background: black; color: white;">Select Plan</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
                             <!-- Distributor Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($is_active && $plan_code === ETIM_License_Manager::PLAN_DISTRIBUTOR) ? 'etim-lk-plan-active' : ''; ?>" style="position:relative;">
-                                <?php if (!$is_active || $plan_code < ETIM_License_Manager::PLAN_DISTRIBUTOR): ?>
-                                <div class="etim-lk-popular-badge">Popular</div>
-                                <?php endif; ?>
-                                <div class="etim-lk-plan-top">
-                                    <img src="<?php echo esc_url($assets_url . 'standard.png'); ?>" alt="Distributor" class="etim-lk-plan-img" />
-                                    <h4 class="etim-lk-plan-name">Distributor</h4>
-                                    <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">$499</span>
-                                        <span class="etim-lk-price-period">/year</span>
-                                    </div>
-                                    <p class="etim-lk-plan-desc">Ideal for distributors and wholesalers managing product catalogs</p>
+                            <div class="etim-lk-plan-card" style="border: 2px solid #4888E8; position: relative; box-shadow: 0 4px 6px rgba(72,136,232,0.1);">
+                                <div style="position: absolute; top: 0; right: 0; background: #4888E8; color: white; padding: 4px 12px; font-size: 11px; font-weight: 800; border-bottom-left-radius: 8px; border-top-right-radius: 10px;">MOST POPULAR</div>
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <img src="<?php echo esc_url($assets_url . 'standard.png'); ?>" alt="Distributor" style="height: 60px; object-fit: contain;" />
                                 </div>
+                                <h4 class="etim-lk-plan-name" style="color: #4888E8; font-size: 24px; font-weight: 800; margin: 0 0 8px;">Distributor</h4>
+                                <p class="etim-lk-plan-desc" style="margin: 0 0 20px;">Perfect for distributors and wholesalers managing larger product catalogs</p>
+
+                                <div style="margin-bottom: 8px; display: flex; align-items: baseline;">
+                                    <span style="font-size: 36px; font-weight: 800; color: #4888E8; line-height: 1;">$599</span>
+                                    <span style="font-size: 14px; font-weight: 600; color: #64748b; margin-left: 4px;">/ year</span>
+                                </div>
+                                <div style="margin-bottom: 24px; font-size: 13px; font-weight: 600; color: #94a3b8; display: flex; align-items: center; gap: 8px;">
+                                    <span style="text-decoration: line-through;">$999</span>
+                                    <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 11px;">40% OFF</span>
+                                </div>
+
                                 <ul class="etim-lk-feature-list">
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Everything in Manufacturer</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Up to 50 Products</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> ETIM Faceted Filters</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> CSV/XML Import & Export</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Bulk Assignment (10/batch)</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Everything in Manufacturer plan</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Assign ETIM data to up to 50 products</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> ETIM Class Filtering option</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> CSV & XML Import / Export</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Maximum 5 website licenses</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Bulk assignment: 50 products/batch</li>
                                 </ul>
-                                <div class="etim-lk-plan-btn-wrap">
+
+                                <div class="etim-lk-plan-btn-wrap" style="margin-top: 10px;">
                                     <?php if ($is_active && $plan_code === ETIM_License_Manager::PLAN_DISTRIBUTOR): ?>
-                                        <span class="etim-lk-btn-current">Current Plan</span>
+                                        <span class="etim-lk-btn-current" style="background: #4888E8; color: white;">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_DISTRIBUTOR )); ?>" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_DISTRIBUTOR )); ?>" target="_blank" class="etim-lk-btn-upgrade" style="background: #4888E8; color: white;">Select Plan</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
                             <!-- Agency / ERP Plan -->
-                            <div class="etim-lk-plan-card <?php echo ($is_active && $plan_code === ETIM_License_Manager::PLAN_ERP) ? 'etim-lk-plan-active' : ''; ?>">
-                                <div class="etim-lk-plan-top">
-                                    <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="WooCommerce Agency" class="etim-lk-plan-img" />
-                                    <h4 class="etim-lk-plan-name">WooCommerce Agency</h4>
-                                    <div class="etim-lk-plan-price">
-                                        <span class="etim-lk-price-amount">$999</span>
-                                        <span class="etim-lk-price-period">/year</span>
-                                    </div>
-                                    <p class="etim-lk-plan-desc">Unlimited access for agencies managing multiple WooCommerce stores</p>
+                            <div class="etim-lk-plan-card" style="border: 2px solid #ca8a04; position: relative;">
+                                <div style="position: absolute; top: 0; right: 0; background: #ca8a04; color: white; padding: 4px 12px; font-size: 11px; font-weight: 800; border-bottom-left-radius: 8px; border-top-right-radius: 10px;">PREMIUM</div>
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <img src="<?php echo esc_url($assets_url . 'pro.png'); ?>" alt="WooCommerce Agency" style="height: 60px; object-fit: contain;" />
                                 </div>
+                                <h4 class="etim-lk-plan-name" style="color: #ca8a04; font-size: 24px; font-weight: 800; margin: 0 0 8px;">WooCommerce Agency</h4>
+                                <p class="etim-lk-plan-desc" style="margin: 0 0 20px;">Ideal for agencies managing multiple WooCommerce stores</p>
+
+                                <div style="margin-bottom: 8px; display: flex; align-items: baseline;">
+                                    <span style="font-size: 36px; font-weight: 800; color: #ca8a04; line-height: 1;">$999</span>
+                                    <span style="font-size: 14px; font-weight: 600; color: #64748b; margin-left: 4px;">/ year</span>
+                                </div>
+                                <div style="margin-bottom: 24px; font-size: 13px; font-weight: 600; color: #94a3b8; display: flex; align-items: center; gap: 8px;">
+                                    <span style="text-decoration: line-through;">$1999</span>
+                                    <span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 11px;">50% OFF</span>
+                                </div>
+
                                 <ul class="etim-lk-feature-list">
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Everything in Distributor</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Unlimited Products</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Unlimited Bulk Mapping</li>
-                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" class="etim-lk-tick" /> Priority Support</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Everything in Distributor plan</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Unlimited ETIM data assignments</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Maximum 10 website licenses</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Unlimited bulk product assignments</li>
+                                    <li><img src="<?php echo esc_url($assets_url . 'tick.png'); ?>" alt="" style="width:16px;height:16px;margin-right:8px;flex-shrink:0;" /> Multilingual support</li>
                                 </ul>
-                                <div class="etim-lk-plan-btn-wrap">
+
+                                <div class="etim-lk-plan-btn-wrap" style="margin-top: 10px;">
                                     <?php if ($is_active && $plan_code === ETIM_License_Manager::PLAN_ERP): ?>
-                                        <span class="etim-lk-btn-current">Current Plan</span>
+                                        <span class="etim-lk-btn-current" style="background: #ca8a04; color: white;">Current Plan</span>
                                     <?php else: ?>
-                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_ERP )); ?>" target="_blank" class="etim-lk-btn-upgrade">Upgrade Now</a>
+                                        <a href="<?php echo esc_url($feature_access->get_plan_checkout_url( ETIM_License_Manager::PLAN_ERP )); ?>" target="_blank" class="etim-lk-btn-upgrade" style="background: #ca8a04; color: white;">Select Plan</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -860,6 +1089,17 @@ class ETIM_Admin_Settings {
         </div>
 
         <style>
+        /* Hide WooCommerce and other admin notices on this dashboard for a clean UI */
+        div.notice:not(#setting-error-settings_updated),
+        div.updated:not(#setting-error-settings_updated),
+        div.error:not(#setting-error-settings_updated),
+        div.update-nag,
+        .woocommerce-message,
+        .woocommerce-error,
+        .woocommerce-info {
+            display: none !important;
+        }
+
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
         .etim-app-wrapper {
@@ -914,7 +1154,12 @@ class ETIM_Admin_Settings {
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
-        .etim-nav-btn img { width: 18px; margin-right: 12px; opacity: 0.7; }
+        .etim-nav-btn img,
+        .etim-icon {
+            width: 18px; height: 18px; margin-right: 12px; opacity: 0.7;
+            object-fit: contain; display: inline-block !important;
+            visibility: visible !important; vertical-align: middle;
+        }
         .etim-nav-btn.active img { opacity: 1; }
 
         .etim-main { flex: 1; padding: 30px 40px; background: #ffffff; overflow-y: auto;}
@@ -965,16 +1210,6 @@ class ETIM_Admin_Settings {
         .etim-pi-bar { width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
         .etim-pi-fill { height: 100%; background: #4888E8; border-radius: 5px; transition: width 0.5s ease; }
 
-        /* Top Classes Chart */
-        .etim-top-classes-chart { display: flex; align-items: flex-end; justify-content: space-around; gap: 8px; height: 200px; padding-top: 10px; padding-bottom: 20px;}
-        .etim-tcc-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; max-width: 45px;}
-        .etim-tcc-bar-wrap { height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position:relative; }
-        .etim-tcc-val { font-size: 11px; color: #475569; font-weight: 600; margin-bottom: 6px; }
-        .etim-tcc-bar { width: 100%; background: #60a5fa; border-top-left-radius: 4px; border-top-right-radius: 4px; transition: height 0.3s, background 0.2s; min-height: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
-        .etim-tcc-bar-wrap:hover .etim-tcc-bar { background: #4888E8; }
-        .etim-tcc-label-wrap { height: 30px; margin-top: 8px; display: flex; align-items: flex-start; justify-content: center; width: 100%; }
-        .etim-tcc-label { font-size: 10px; font-family: monospace; color: #64748b; transform: rotate(-45deg); font-weight: 500;}
-
         /* Recent Activity */
         .etim-activity-list { list-style: none; margin: 0; padding: 0; max-height: 250px; overflow-y: auto; padding-right: 8px; }
         .etim-activity-list::-webkit-scrollbar { width: 4px; }
@@ -985,22 +1220,30 @@ class ETIM_Admin_Settings {
 
         /* Forms */
         .etim-form-panel { max-width: 750px; background: transparent; border: none; padding: 0; box-shadow: none; margin-bottom: 20px;}
-        .etim-f-row { display: flex; padding: 20px 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; align-items: center;}
+        .etim-f-row { display: flex; padding: 22px 28px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 14px; align-items: center; transition: border-color 0.2s, box-shadow 0.2s;}
+        .etim-f-row:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
         .etim-f-row:last-child { margin-bottom: 0; }
         .etim-f-left { width: 350px; flex-shrink: 0; }
-        .etim-f-left label { font-weight: 600; color: #0f172a; font-size: 14px; display: block;}
-        .etim-f-left p { margin: 6px 0 0 0; font-size: 13px; color: #a0aec0; padding-right:20px; line-height: 1.5; font-weight: 400;}
+        .etim-f-left label { font-weight: 700; color: #0f172a; font-size: 14px; display: block; letter-spacing: -0.01em;}
+        .etim-f-left p { margin: 6px 0 0 0; font-size: 13px; color: #94a3b8; padding-right:20px; line-height: 1.5; font-weight: 400;}
         .etim-f-right { flex: 1; display:flex; align-items: center; }
-        
+
         .etim-form input[type="text"], .etim-form input[type="password"], .etim-form select {
-            width: 100%; max-width: 350px; padding: 12px 16px; border: 1px solid #f1f5f9; border-radius: 8px; font-size: 14px; background: #f8fafc; color: #334155; box-sizing: border-box; box-shadow:none; transition: all 0.2s;
+            width: 100%; max-width: 350px; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: #ffffff; color: #334155; box-sizing: border-box; box-shadow: none; transition: all 0.25s ease; font-weight: 500;
+        }
+        .etim-form input[type="text"]::placeholder, .etim-form input[type="password"]::placeholder {
+            color: #cbd5e1; font-weight: 400;
+        }
+        .etim-form input[type="text"]:hover, .etim-form input[type="password"]:hover, .etim-form select:hover {
+            border-color: #94a3b8;
         }
         .etim-form input[type="text"]:focus, .etim-form input[type="password"]:focus, .etim-form select:focus {
-            border-color: #4888E8; outline: none; background: #ffffff; box-shadow: 0 0 0 2px rgba(72, 136, 232, 0.1);
+            border-color: #4888E8; outline: none; background: #ffffff; box-shadow: 0 0 0 3px rgba(72, 136, 232, 0.12);
         }
 
         .etim-pwd-field { position: relative; width: 100%; max-width: 350px; }
-        .etim-toggle-pwd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; }
+        .etim-toggle-pwd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; transition: opacity 0.2s; }
+        .etim-toggle-pwd:hover { opacity: 0.7; }
 
         .etim-flex-row { justify-content: space-between; align-items: center; }
         .etim-switch { position: relative; display: inline-block; width: 44px; height: 24px; margin-right: 15px;}
@@ -1152,8 +1395,28 @@ class ETIM_Admin_Settings {
             display: flex; align-items: center; gap: 10px;
             font-size: 13px; color: #334155; margin-bottom: 12px; font-weight: 500;
         }
+        .etim-lk-feature-list li img {
+            width: 16px; height: 16px; flex-shrink: 0; object-fit: contain;
+            display: inline-block !important; visibility: visible !important;
+            opacity: 1 !important; max-width: none !important;
+        }
         .etim-lk-tick {
             width: 20px; height: 20px; flex-shrink: 0; object-fit: contain;
+        }
+        /* Ensure all license tab images are visible */
+        #tab-license img {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            max-width: none !important;
+        }
+        .etim-lk-plan-card img {
+            display: inline-block !important;
+            visibility: visible !important;
+        }
+        .etim-lk-plan-hero img {
+            display: inline-block !important;
+            visibility: visible !important;
         }
         .etim-lk-plan-btn-wrap { margin-top: auto; }
         .etim-lk-btn-current {
@@ -1221,10 +1484,151 @@ class ETIM_Admin_Settings {
             text-align: right; width: 120px;
         }
 
+        /* === Dashboard Grid Areas === */
+        .etim-bento-grid {
+            grid-template-areas:
+                "account stats"
+                "health health"
+                "activity quality";
+            grid-template-columns: 1.5fr 1fr;
+            grid-template-rows: auto auto auto;
+            align-items: stretch;
+        }
+        .etim-account { grid-area: account; }
+        .etim-stat-cards { grid-area: stats; }
+        .etim-health-perf { grid-area: health; }
+        .etim-quality { grid-area: quality; }
+        .etim-activity { grid-area: activity; height: 100%; box-sizing: border-box; }
+
+        /* === Mapping Health & Performance === */
+        .etim-health-perf { padding: 28px 32px; }
+        .etim-hp-inner {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr 1.1fr;
+            gap: 0;
+        }
+
+        /* Gauge */
+        .etim-hp-gauge { text-align: center; padding-right: 24px; }
+        .etim-gauge-container {
+            position: relative;
+            width: 190px;
+            margin: 0 auto 8px;
+        }
+        .etim-gauge-svg { width: 100%; display: block; }
+        .etim-gauge-value {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 38px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1;
+        }
+        .etim-gauge-value .etim-gauge-pct { font-variant-numeric: tabular-nums; }
+        .etim-gauge-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+        .etim-gauge-sublabel {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* KPIs */
+        .etim-hp-kpis {
+            border-left: 1px solid #e2e8f0;
+            padding: 0 24px;
+        }
+        .etim-hp-kpis h5, .etim-hp-cats h5 {
+            margin: 0 0 18px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .etim-kpi-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .etim-kpi-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .etim-kpi-num {
+            font-size: 28px;
+            font-weight: 800;
+            color: #4888E8;
+            line-height: 1;
+            min-width: 36px;
+            font-variant-numeric: tabular-nums;
+        }
+        .etim-kpi-info { flex: 1; padding-top: 2px; }
+        .etim-kpi-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+        }
+        .etim-kpi-title strong { font-size: 13px; font-weight: 600; color: #0f172a; }
+        .etim-kpi-desc { font-size: 12px; color: #94a3b8; display: block; }
+
+        /* Category Accuracy Bars */
+        .etim-hp-cats {
+            border-left: 1px solid #e2e8f0;
+            padding-left: 24px;
+        }
+        .etim-cat-row {
+            display: grid;
+            grid-template-columns: 72px 1fr 38px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .etim-cat-row:last-child { margin-bottom: 0; }
+        .etim-cat-name { font-size: 13px; font-weight: 500; color: #334155; }
+        .etim-cat-bar-bg {
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .etim-cat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4888E8, #60a5fa);
+            border-radius: 5px;
+            transition: width 1.2s ease-out;
+        }
+        .etim-cat-pct { font-size: 12px; font-weight: 600; color: #475569; text-align: right; }
+
+        /* Health & Performance responsive */
+        @media (max-width: 1200px) {
+            .etim-hp-inner { grid-template-columns: 1fr; }
+            .etim-hp-kpis, .etim-hp-cats { border-left: none; padding-left: 0; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 20px; }
+            .etim-hp-gauge { padding-right: 0; }
+        }
+
         @media (max-width: 960px) {
             .etim-lk-plans-grid { grid-template-columns: 1fr; }
             .etim-lk-detail-grid { grid-template-columns: 1fr; }
             .etim-lk-input-row { max-width: 100%; }
+        }
+
+        @media (max-width: 768px) {
+            .etim-bento-grid {
+                grid-template-columns: 1fr !important;
+                grid-template-areas:
+                    "account"
+                    "stats"
+                    "health"
+                    "activity"
+                    "quality" !important;
+            }
         }
         </style>
 
@@ -1234,10 +1638,22 @@ class ETIM_Admin_Settings {
             var navBtns = document.querySelectorAll('.etim-nav-btn');
             var tabs = document.querySelectorAll('.etim-tab');
             
-            // Check for saved tab
-            var activeTab = localStorage.getItem('etim_active_tab') || 'tab-dashboard';
+            // Check for saved tab based on URL param
+            var urlParams = new URLSearchParams(window.location.search);
+            var pageParam = urlParams.get('page');
+            var activeTab = 'tab-dashboard';
             
-            // Initial setup based on saved tab
+            if (pageParam === 'etim-configure') {
+                activeTab = 'tab-configure';
+            } else if (pageParam === 'etim-license') {
+                activeTab = 'tab-license';
+            } else if (pageParam === 'etim-settings') {
+                activeTab = localStorage.getItem('etim_active_tab') || 'tab-dashboard';
+            } else {
+                activeTab = localStorage.getItem('etim_active_tab') || 'tab-dashboard';
+            }
+            
+            // Initial setup based on calculated tab
             if (activeTab) {
                 navBtns.forEach(function(b) { b.classList.remove('active'); });
                 tabs.forEach(function(t) { t.classList.remove('active'); });
@@ -1259,17 +1675,24 @@ class ETIM_Admin_Settings {
             
             navBtns.forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
-                    e.preventDefault();
                     var targetId = this.getAttribute('data-tab');
+                    var href = this.getAttribute('href');
                     
-                    navBtns.forEach(function(b) { b.classList.remove('active'); });
-                    tabs.forEach(function(t) { t.classList.remove('active'); });
-                    
-                    this.classList.add('active');
-                    document.getElementById(targetId).classList.add('active');
-                    
-                    // Save active tab
-                    localStorage.setItem('etim_active_tab', targetId);
+                    if (href && href.startsWith('#')) {
+                        e.preventDefault();
+                        navBtns.forEach(function(b) { b.classList.remove('active'); });
+                        tabs.forEach(function(t) { t.classList.remove('active'); });
+                        
+                        this.classList.add('active');
+                        var trg = document.getElementById(targetId);
+                        if(trg) trg.classList.add('active');
+                        
+                        // Save active tab
+                        localStorage.setItem('etim_active_tab', targetId);
+                    } else {
+                        // Allow browser redirect for full URLs to trigger WP menu sync!
+                        localStorage.setItem('etim_active_tab', targetId);
+                    }
                 });
             });
 
@@ -1330,14 +1753,14 @@ class ETIM_Admin_Settings {
                                         msgEl.className = 'etim-lic-message error';
                                         msgEl.textContent = response.data.message || 'Activation failed.';
                                         activateBtn.disabled = false;
-                                        activateBtn.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" style="margin-right:6px;"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Activate';
+                                        activateBtn.innerHTML = 'Activate License';
                                     }
                                 },
                                 error: function() {
                                     msgEl.className = 'etim-lic-message error';
                                     msgEl.textContent = 'Network error. Please try again.';
                                     activateBtn.disabled = false;
-                                    activateBtn.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" style="margin-right:6px;"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Activate';
+                                    activateBtn.innerHTML = 'Activate License';
                                 }
                             });
                         }
@@ -1365,13 +1788,13 @@ class ETIM_Admin_Settings {
                                     } else {
                                         alert(response.data.message || 'Deactivation failed.');
                                         deactivateBtn.disabled = false;
-                                        deactivateBtn.textContent = 'Deactivate License';
+                                        deactivateBtn.textContent = 'Cancel Activation';
                                     }
                                 },
                                 error: function() {
                                     alert('Network error. Please try again.');
                                     deactivateBtn.disabled = false;
-                                    deactivateBtn.textContent = 'Deactivate License';
+                                    deactivateBtn.textContent = 'Cancel Activation';
                                 }
                             });
                         }
@@ -1421,7 +1844,123 @@ class ETIM_Admin_Settings {
                     });
                 });
             }
+
+            // Dashboard Gauge Animation
+            (function() {
+                var gaugeFill = document.querySelector('.etim-gauge-fill');
+                var gaugeText = document.querySelector('.etim-gauge-pct');
+                if (!gaugeFill || !gaugeText) return;
+
+                var pct = parseInt(gaugeFill.getAttribute('data-pct')) || 0;
+                var totalArc = 251.33;
+                var targetOffset = totalArc * (1 - pct / 100);
+
+                setTimeout(function() {
+                    gaugeFill.style.transition = 'stroke-dashoffset 1.5s ease-out';
+                    gaugeFill.style.strokeDashoffset = targetOffset;
+                }, 300);
+
+                var target = pct;
+                var startTime = null;
+                function animateCounter(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    var progress = Math.min((timestamp - startTime) / 1500, 1);
+                    var eased = 1 - Math.pow(1 - progress, 3);
+                    gaugeText.textContent = Math.floor(eased * target);
+                    if (progress < 1) {
+                        requestAnimationFrame(animateCounter);
+                    } else {
+                        gaugeText.textContent = target;
+                    }
+                }
+                setTimeout(function() { requestAnimationFrame(animateCounter); }, 300);
+            })();
         });
+
+        /* ── Drag & Drop for Import ── */
+        (function() {
+            var dropZone = document.getElementById('etim-drop-zone');
+            if (!dropZone) return;
+            var fileInput = document.getElementById('real-import-file');
+            var form = document.getElementById('etim_import_form');
+
+            ['dragenter', 'dragover'].forEach(function(ev) {
+                dropZone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.style.borderColor = '#4888E8';
+                    dropZone.style.background = '#eff6ff';
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(function(ev) {
+                dropZone.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (ev === 'dragleave') {
+                        dropZone.style.borderColor = '#cbd5e1';
+                        dropZone.style.background = '#f8fafc';
+                    }
+                });
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                var files = e.dataTransfer.files;
+                if (files.length === 0) return;
+                var file = files[0];
+                var ext = file.name.split('.').pop().toLowerCase();
+                if (ext !== 'csv' && ext !== 'xml') {
+                    etimShowToast('Please upload a .csv or .xml file.', 'error');
+                    return;
+                }
+                // Set file on the hidden input via DataTransfer
+                var dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                // Show uploading state
+                var dt2 = document.getElementById('etim-drop-text');
+                if (dt2) {
+                    dt2.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right:6px;vertical-align:-3px;animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="#4888E8" stroke-width="2" stroke-dasharray="31.4 31.4" stroke-linecap="round"/></svg> Uploading ' + file.name + '...';
+                }
+                dropZone.style.borderColor = '#4888E8';
+                dropZone.style.background = '#eff6ff';
+                form.submit();
+            });
+        })();
+
+        /* ── Toast Notification System ── */
+        function etimShowToast(message, type) {
+            type = type || 'success';
+            var colors = {
+                success: { bg: '#f0fdf4', border: '#86efac', text: '#166534', icon: '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' },
+                error:   { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', icon: '<path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' }
+            };
+            var c = colors[type] || colors.success;
+            var toast = document.createElement('div');
+            toast.className = 'etim-toast';
+            toast.style.cssText = 'position:fixed;top:40px;right:30px;z-index:999999;display:flex;align-items:center;gap:10px;padding:14px 22px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,0.12);border:1px solid '+c.border+';background:'+c.bg+';color:'+c.text+';opacity:0;transform:translateY(-20px);transition:all 0.3s ease;';
+            toast.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none">' + c.icon + '</svg><span>' + message + '</span><span onclick="this.parentNode.remove();" style="cursor:pointer;margin-left:10px;opacity:0.5;font-size:18px;">&times;</span>';
+            document.body.appendChild(toast);
+            setTimeout(function() { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; }, 50);
+            setTimeout(function() { toast.style.opacity = '0'; toast.style.transform = 'translateY(-20px)'; setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300); }, 4000);
+        }
+        window.etimShowToast = etimShowToast;
+
+        /* ── Show toast on page load if imported/exported param exists ── */
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('imported') === '1') {
+                etimShowToast('Data imported successfully!', 'success');
+                window.history.replaceState({}, '', window.location.pathname + '?page=etim-settings');
+            } else if (params.get('imported') === '0') {
+                etimShowToast('Import failed. Please check your file and try again.', 'error');
+                window.history.replaceState({}, '', window.location.pathname + '?page=etim-settings');
+            }
+            if (params.get('exported') === '1') {
+                etimShowToast('Data exported successfully!', 'success');
+                window.history.replaceState({}, '', window.location.pathname + '?page=etim-settings');
+            }
+        })();
         </script>
         <?php
     }
@@ -1838,81 +2377,235 @@ class ETIM_Admin_Settings {
         }
 
         $file = $_FILES['import_file']['tmp_name'];
-        if (($handle = fopen($file, "r")) !== false) {
-            global $wpdb;
-            $classes_table = $wpdb->prefix . 'etim_product_classes';
-            $features_table = $wpdb->prefix . 'etim_product_features';
-            $groups_table = $wpdb->prefix . 'etim_product_groups';
+        $filename = isset($_FILES['import_file']['name']) ? $_FILES['import_file']['name'] : '';
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-            // Skip headers line
-            $headers = fgetcsv($handle);
-            
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count($row) < 6) continue;
-                
-                $sku = sanitize_text_field($row[0]);
-                $version = sanitize_text_field($row[1]);
-                $group = sanitize_text_field($row[2]);
-                $group_name = sanitize_text_field($row[3]);
-                $class_code = sanitize_text_field($row[4]);
-                $class_name = sanitize_text_field($row[5]);
-                $feat_code = sanitize_text_field($row[6] ?? '');
-                $feat_name = sanitize_text_field($row[7] ?? '');
-                $value = sanitize_text_field($row[8] ?? '');
-                
-                $pid = 0;
-                if (!empty($sku)) {
-                    $pid = wc_get_product_id_by_sku($sku);
-                }
-                
-                if (!$pid || empty($class_code)) continue;
-                
-                update_post_meta($pid, '_etim_version', $version ?: 'ETIM-8.0');
-                if (!empty($group)) update_post_meta($pid, '_etim_group_id', $group);
-                
-                $wpdb->replace(
-                    $classes_table,
-                    [
-                        'product_id' => $pid,
-                        'class_code' => $class_code,
-                        'class_name' => $class_name ?: $class_code,
-                        'group_code' => $group
-                    ],
-                    ['%d', '%s', '%s', '%s']
-                );
-                
-                if (!empty($group)) {
-                    $wpdb->replace(
-                        $groups_table,
-                        [
-                            'product_id' => $pid,
-                            'group_code' => $group,
-                            'group_name' => $group_name ?: $group
-                        ],
-                        ['%d', '%s', '%s']
-                    );
-                }
+        global $wpdb;
+        $classes_table = $wpdb->prefix . 'etim_product_classes';
+        $features_table = $wpdb->prefix . 'etim_product_features';
+        $groups_table = $wpdb->prefix . 'etim_product_groups';
 
-                if (!empty($feat_code)) {
-                    $wpdb->replace(
-                        $features_table,
-                        [
-                            'product_id' => $pid,
-                            'class_code' => $class_code,
-                            'feature_code' => $feat_code,
-                            'feature_name' => $feat_name ?: $feat_code,
-                            'feature_value_description' => $value,
-                            'feature_type' => 'alphanumeric'
-                        ],
-                        ['%d', '%s', '%s', '%s', '%s', '%s']
-                    );
-                }
-            }
-            fclose($handle);
+        if ($ext === 'xml') {
+            // Handle XML import
+            $this->import_xml_file($file, $classes_table, $features_table, $groups_table);
+        } else {
+            // Handle CSV import
+            $this->import_csv_file($file, $classes_table, $features_table, $groups_table);
         }
 
         wp_redirect(admin_url('admin.php?page=etim-settings&imported=1'));
         exit;
+    }
+
+    /**
+     * Import data from a CSV file
+     */
+    private function import_csv_file($file, $classes_table, $features_table, $groups_table) {
+        global $wpdb;
+        if (($handle = fopen($file, "r")) !== false) {
+            $headers = fgetcsv($handle);
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count($row) < 6) continue;
+                $this->process_import_row(
+                    sanitize_text_field($row[0]),
+                    sanitize_text_field($row[1]),
+                    sanitize_text_field($row[2]),
+                    sanitize_text_field($row[3]),
+                    sanitize_text_field($row[4]),
+                    sanitize_text_field($row[5]),
+                    sanitize_text_field($row[6] ?? ''),
+                    sanitize_text_field($row[7] ?? ''),
+                    sanitize_text_field($row[8] ?? ''),
+                    $classes_table, $features_table, $groups_table
+                );
+            }
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Import data from an XML file
+     * Supports the plugin's own export format: <ETIMData><Product sku="..."><Group/><Class><Features><Feature/></Features></Class></Product></ETIMData>
+     * Also supports flat XML: <root><product><sku>...</sku>...</product></root>
+     */
+    private function import_xml_file($file, $classes_table, $features_table, $groups_table) {
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_file($file);
+        if ($xml === false) return;
+
+        // Detect format: check if root is ETIMData or has Product children with attributes
+        $root_name = $xml->getName();
+        $first_child = $xml->children()[0] ?? null;
+
+        if ($first_child && isset($first_child['sku']) && ($first_child->Class || $first_child->Group)) {
+            // Plugin's own export format: <ETIMData><Product sku="..." name="..."><Group code="" name=""/><Class code="" name=""><Features>...</Features></Class></Product></ETIMData>
+            $this->import_xml_etim_format($xml, $classes_table, $features_table, $groups_table);
+        } else {
+            // Flat XML format: <root><product><sku>ABC</sku><class_code>EC...</class_code>...</product></root>
+            $this->import_xml_flat_format($xml, $classes_table, $features_table, $groups_table);
+        }
+    }
+
+    /**
+     * Import the plugin's own ETIM XML export format
+     */
+    private function import_xml_etim_format($xml, $classes_table, $features_table, $groups_table) {
+        foreach ($xml->children() as $product_node) {
+            $sku = sanitize_text_field((string) ($product_node['sku'] ?? ''));
+            if (empty($sku)) continue;
+
+            $pid = wc_get_product_id_by_sku($sku);
+            if (!$pid) continue;
+
+            $group_code = '';
+            $group_name = '';
+            $class_code = '';
+            $class_name = '';
+
+            // Read Group
+            if (isset($product_node->Group)) {
+                $group_code = sanitize_text_field((string) ($product_node->Group['code'] ?? ''));
+                $group_name = sanitize_text_field((string) ($product_node->Group['name'] ?? ''));
+            }
+
+            // Read Class
+            if (isset($product_node->Class)) {
+                $class_code = sanitize_text_field((string) ($product_node->Class['code'] ?? ''));
+                $class_name = sanitize_text_field((string) ($product_node->Class['name'] ?? ''));
+            }
+
+            if (empty($class_code)) continue;
+
+            update_post_meta($pid, '_etim_version', 'ETIM-8.0');
+            if (!empty($group_code)) update_post_meta($pid, '_etim_group_id', $group_code);
+
+            global $wpdb;
+            $wpdb->replace($classes_table, [
+                'product_id' => $pid,
+                'class_code' => $class_code,
+                'class_name' => $class_name ?: $class_code,
+                'group_code' => $group_code
+            ], ['%d', '%s', '%s', '%s']);
+
+            if (!empty($group_code)) {
+                $wpdb->replace($groups_table, [
+                    'product_id' => $pid,
+                    'group_code' => $group_code,
+                    'group_name' => $group_name ?: $group_code
+                ], ['%d', '%s', '%s']);
+            }
+
+            // Read Features
+            if (isset($product_node->Class->Features)) {
+                foreach ($product_node->Class->Features->Feature as $feat_node) {
+                    $feat_code = sanitize_text_field((string) ($feat_node['code'] ?? ''));
+                    $feat_name = sanitize_text_field((string) ($feat_node['name'] ?? ''));
+                    $feat_type = sanitize_text_field((string) ($feat_node['type'] ?? 'alphanumeric'));
+                    $feat_value = '';
+                    if (isset($feat_node->Value)) {
+                        $feat_value = sanitize_text_field((string) $feat_node->Value);
+                    }
+                    if (empty($feat_code)) continue;
+
+                    $wpdb->replace($features_table, [
+                        'product_id' => $pid,
+                        'class_code' => $class_code,
+                        'feature_code' => $feat_code,
+                        'feature_name' => $feat_name ?: $feat_code,
+                        'feature_value_description' => $feat_value,
+                        'feature_type' => $feat_type
+                    ], ['%d', '%s', '%s', '%s', '%s', '%s']);
+                }
+            }
+        }
+    }
+
+    /**
+     * Import a flat XML format with child elements as field values
+     */
+    private function import_xml_flat_format($xml, $classes_table, $features_table, $groups_table) {
+        $products = [];
+        if (isset($xml->product)) {
+            $products = $xml->product;
+        } elseif (isset($xml->row)) {
+            $products = $xml->row;
+        } elseif (isset($xml->item)) {
+            $products = $xml->item;
+        } else {
+            $products = $xml->children();
+        }
+
+        foreach ($products as $item) {
+            $sku        = sanitize_text_field((string) ($item->sku ?? $item->SKU ?? ''));
+            $version    = sanitize_text_field((string) ($item->version ?? $item->etim_version ?? ''));
+            $group      = sanitize_text_field((string) ($item->group_code ?? $item->group ?? ''));
+            $group_name = sanitize_text_field((string) ($item->group_name ?? ''));
+            $class_code = sanitize_text_field((string) ($item->class_code ?? $item->class ?? ''));
+            $class_name = sanitize_text_field((string) ($item->class_name ?? ''));
+            $feat_code  = sanitize_text_field((string) ($item->feature_code ?? $item->feat_code ?? ''));
+            $feat_name  = sanitize_text_field((string) ($item->feature_name ?? $item->feat_name ?? ''));
+            $value      = sanitize_text_field((string) ($item->feature_value ?? $item->value ?? ''));
+
+            $this->process_import_row(
+                $sku, $version, $group, $group_name,
+                $class_code, $class_name, $feat_code, $feat_name, $value,
+                $classes_table, $features_table, $groups_table
+            );
+        }
+    }
+
+    /**
+     * Process a single import row (shared by CSV and XML)
+     */
+    private function process_import_row($sku, $version, $group, $group_name, $class_code, $class_name, $feat_code, $feat_name, $value, $classes_table, $features_table, $groups_table) {
+        global $wpdb;
+
+        $pid = 0;
+        if (!empty($sku)) {
+            $pid = wc_get_product_id_by_sku($sku);
+        }
+        if (!$pid || empty($class_code)) return;
+
+        update_post_meta($pid, '_etim_version', $version ?: 'ETIM-8.0');
+        if (!empty($group)) update_post_meta($pid, '_etim_group_id', $group);
+
+        $wpdb->replace(
+            $classes_table,
+            [
+                'product_id' => $pid,
+                'class_code' => $class_code,
+                'class_name' => $class_name ?: $class_code,
+                'group_code' => $group
+            ],
+            ['%d', '%s', '%s', '%s']
+        );
+
+        if (!empty($group)) {
+            $wpdb->replace(
+                $groups_table,
+                [
+                    'product_id' => $pid,
+                    'group_code' => $group,
+                    'group_name' => $group_name ?: $group
+                ],
+                ['%d', '%s', '%s']
+            );
+        }
+
+        if (!empty($feat_code)) {
+            $wpdb->replace(
+                $features_table,
+                [
+                    'product_id' => $pid,
+                    'class_code' => $class_code,
+                    'feature_code' => $feat_code,
+                    'feature_name' => $feat_name ?: $feat_code,
+                    'feature_value_description' => $value,
+                    'feature_type' => 'alphanumeric'
+                ],
+                ['%d', '%s', '%s', '%s', '%s', '%s']
+            );
+        }
     }
 
     /**

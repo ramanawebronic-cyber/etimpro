@@ -115,12 +115,65 @@
     }
 
     /**
+     * Handle ETIM Sync functionality
+     */
+    function initSyncData() {
+        $('#etim-sync-btn').on('click', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var $status = $('#etim-sync-status');
+            var $icon = $btn.find('img');
+            var $text = $btn.find('span');
+
+            // Show loading
+            $btn.prop('disabled', true);
+            $icon.css('animation', 'spin 1s linear infinite');
+            $text.text('Syncing...');
+            $status.hide();
+
+            $.ajax({
+                url: etimSettings.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'etim_sync_data',
+                    nonce: etimSettings.nonce
+                },
+                success: function (response) {
+                    $btn.prop('disabled', false);
+                    $icon.css('animation', '');
+                    $text.text('Sync Now');
+
+                    if (response.success) {
+                        $status.css('color', '#22c55e').text(response.data.message).fadeIn();
+                        setTimeout(function () {
+                            $status.fadeOut();
+                        }, 5000);
+
+                        // Possibly update the "Last Synced" text if it exists
+                        // e.g., location.reload();
+                    } else {
+                        var errMsg = response.data && response.data.message ? response.data.message : 'Sync Failed';
+                        $status.css('color', '#ef4444').text(errMsg).fadeIn();
+                    }
+                },
+                error: function () {
+                    $btn.prop('disabled', false);
+                    $icon.css('animation', '');
+                    $text.text('Sync Now');
+                    $status.css('color', '#ef4444').text('An error occurred. Please try again.').fadeIn();
+                }
+            });
+        });
+    }
+
+    /**
      * Initialize on document ready
      */
     $(document).ready(function () {
         initToggleSecret();
         initTestConnection();
         initImageFallback();
+        initSyncData();
     });
 
 })(jQuery);

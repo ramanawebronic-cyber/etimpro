@@ -750,11 +750,80 @@
             }
         },
 
+        /**
+         * Validate that all assigned features have values filled in.
+         * Returns true if valid, false if there are empty values.
+         * If no features are added (class only), returns true (allow save).
+         */
+        validateFeatureValues: function () {
+            if (this.assignedFeatures.length === 0) {
+                return true; // Allow saving with class only, no features
+            }
+
+            var emptyFeatures = [];
+            var self = this;
+
+            this.assignedFeatures.forEach(function (feature) {
+                var val = feature.assignedValue;
+                var isEmpty = false;
+
+                if (val === '' || val === null || val === undefined) {
+                    isEmpty = true;
+                } else if (typeof val === 'object' && val !== null) {
+                    if (!val.code && !val.description) isEmpty = true;
+                } else if (typeof val === 'string') {
+                    // Check range values
+                    if (val === '::') isEmpty = true;
+                    if (val.trim() === '') isEmpty = true;
+                }
+
+                if (isEmpty) {
+                    emptyFeatures.push(feature.description || feature.code);
+                }
+            });
+
+            if (emptyFeatures.length > 0) {
+                // Highlight empty feature cards
+                this.$featuresGrid.find('.etim-feature-card').each(function () {
+                    var code = $(this).data('feature-code');
+                    var feature = self.assignedFeatures.find(function (f) { return f.code === code; });
+                    if (feature) {
+                        var val = feature.assignedValue;
+                        var isEmpty = false;
+                        if (val === '' || val === null || val === undefined) isEmpty = true;
+                        else if (typeof val === 'object' && val !== null && !val.code && !val.description) isEmpty = true;
+                        else if (typeof val === 'string' && (val === '::' || val.trim() === '')) isEmpty = true;
+
+                        if (isEmpty) {
+                            $(this).addClass('etim-validation-error');
+                            $(this).find('.etim-feature-value-field').addClass('etim-field-required');
+                        } else {
+                            $(this).removeClass('etim-validation-error');
+                            $(this).find('.etim-feature-value-field').removeClass('etim-field-required');
+                        }
+                    }
+                });
+
+                this.$saveStatus.addClass('error').text('Please fill in all feature values. ' + emptyFeatures.length + ' feature(s) missing values.');
+                return false;
+            }
+
+            // Clear all validation errors
+            this.$featuresGrid.find('.etim-feature-card').removeClass('etim-validation-error');
+            this.$featuresGrid.find('.etim-feature-value-field').removeClass('etim-field-required');
+            return true;
+        },
+
         saveData: function () {
             var self = this;
 
             // Safety: re-sync the hidden JSON field before saving
             this.updateDataJson();
+
+            // Validate feature values are filled (mandatory)
+            if (!this.validateFeatureValues()) {
+                return;
+            }
 
             var jsonVal = this.$dataJson.val();
             // Prevent accidental deletion: if we have features on screen but JSON is empty
@@ -817,16 +886,17 @@
             var count = data.current_count || 0;
             var max = data.max_allowed || 0;
             var url = data.upgrade_url || '#';
+            var imgUrl = assetsUrl + 'pro.png';
 
             var html = '<div id="etim-limit-modal" class="etim-limit-modal-overlay">';
-            html += '<div class="etim-limit-modal-content">';
-            html += '<div class="etim-limit-modal-icon"><svg width="28" height="28" fill="none" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#fff" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>';
-            html += '<h3>Product Limit Reached</h3>';
-            html += '<p>You have assigned ETIM data to <strong>' + count + '</strong> out of <strong>' + max + '</strong> products allowed on your current plan.</p>';
-            html += '<p style="color:#64748b;">Upgrade your plan to assign ETIM data to more products.</p>';
+            html += '<div class="etim-limit-modal-content" style="max-width:420px;border-radius:20px;padding:40px 32px;text-align:center;position:relative;">';
+            html += '<button type="button" class="etim-limit-btn-close" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:#fef2f2;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#ef4444;font-weight:700;">&times;</button>';
+            html += '<div class="etim-limit-modal-image"><img src="' + imgUrl + '" alt="" style="max-width:200px;height:auto;" /></div>';
+            html += '<h3 style="color:#4888E8;font-size:20px;font-weight:700;margin:16px 0 12px;">Product Limit Reached</h3>';
+            html += '<p style="font-size:14px;color:#334155;line-height:1.6;">You have assigned ETIM Data to <strong>' + count + ' of ' + max + ' products</strong><br>allowed on your current plan</p>';
+            html += '<p style="color:#64748b;font-size:13px;margin-bottom:24px;">Upgrade your plan to assign ETIM data to more products</p>';
             html += '<div class="etim-limit-modal-actions">';
-            html += '<a href="' + url + '" target="_blank" class="etim-limit-btn-upgrade">Upgrade Now</a>';
-            html += '<button type="button" class="etim-limit-btn-close">Close</button>';
+            html += '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:12px 32px;border-radius:30px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(245,158,11,0.3);">&#128081; Upgrade</a>';
             html += '</div></div></div>';
 
             $('body').append(html);
@@ -854,9 +924,9 @@
 
             if (max === -1) return; // unlimited
 
-            var html = '<div id="etim-limit-warning" class="etim-limit-warning-banner">';
-            html += '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#ef4444" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>';
-            html += '<span>Product limit reached (<strong>' + count + '/' + max + '</strong>). You cannot assign ETIM data to new products. ';
+            var html = '<div id="etim-limit-warning" class="etim-limit-warning-banner" style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;margin-bottom:16px;">';
+            html += '<img src="' + assetsUrl + 'open.png" alt="" style="width:32px;height:32px;flex-shrink:0;" />';
+            html += '<span style="font-size:13px;color:#991b1b;line-height:1.5;">Product limit reached (<strong>' + count + '/' + max + '</strong>). You cannot assign ETIM data to new products. ';
             html += '<a href="' + url + '" target="_blank" style="color:#4888E8;font-weight:600;">Upgrade your plan</a></span>';
             html += '</div>';
 

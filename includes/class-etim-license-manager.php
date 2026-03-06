@@ -65,6 +65,7 @@ class ETIM_License_Manager {
      * Refresh plan status on every page load (admin + frontend)
      * Re-reads the product reference from the license database to detect plan changes
      * when a user activates a new license key for a different plan.
+     * Also checks if the key still exists in the SLM database - if removed, deactivate immediately.
      */
     public function refresh_plan_status() {
         // Prevent running multiple times per request
@@ -87,8 +88,19 @@ class ETIM_License_Manager {
         }
 
         // Re-read product reference from SLM database to detect plan changes
+        // Also verify the key still exists in the SLM database
         $check_data = $this->slm_check_direct($license_key);
-        if (isset($check_data['result']) && $check_data['result'] === 'success' && !empty($check_data['product_ref'])) {
+
+        // If key not found in SLM database, immediately deactivate
+        if (!isset($check_data['result']) || $check_data['result'] !== 'success') {
+            $this->clear_license();
+            update_option('etim_lic_auto_expired', true, false);
+            update_option('etim_lic_expired_date', current_time('mysql'), false);
+            $this->set_plan_status(self::PLAN_FREE);
+            return;
+        }
+
+        if (!empty($check_data['product_ref'])) {
             $current_ref = get_option('etim_actual_product_ref', '');
             $new_ref = sanitize_text_field($check_data['product_ref']);
             if ($current_ref !== $new_ref) {
@@ -703,6 +715,13 @@ class ETIM_License_Manager {
             default:
                 return 'Free';
         }
+    }
+
+    /**
+     * Get full (unmasked) license key for admin display
+     */
+    public function get_full_license_key() {
+        return $this->get_stored_license();
     }
 
     /**

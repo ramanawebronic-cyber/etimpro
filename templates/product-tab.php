@@ -3,6 +3,7 @@
  * ETIM Product Tab Template (Frontend)
  *
  * Displays ETIM features on the single product page
+ * Card-based accordion layout with filter settings color
  *
  * @var array $etim_data
  *
@@ -19,7 +20,7 @@ $current_locale = get_locale();
 $use_swedish = ($current_locale === 'sv_SE');
 
 // Get user-configured color from ETIM settings
-$etim_color = get_option('etim_filter_color', '#475569');
+$etim_color = get_option('etim_filter_color', '#4888E8');
 
 /**
  * Get localized description
@@ -104,17 +105,18 @@ if (!function_exists('etim_get_formatted_value')) {
 }
 ?>
 
-<div class="etim-product-features etim-specs-container">
-    <?php foreach ($etim_data as $class) : ?>
+<div class="etim-product-features etim-specs-container" style="--etim-accent: <?php echo esc_attr($etim_color); ?>;">
+    <?php foreach ($etim_data as $index => $class) : ?>
         <?php
         // Check if class has any assigned features
         $has_assigned_features = false;
+        $assigned_features = [];
         if (!empty($class['features'])) {
             foreach ($class['features'] as $feature) {
                 $av = $feature['assignedValue'] ?? '';
                 if (!empty($av) || $av === '0' || $av === false) {
                     $has_assigned_features = true;
-                    break;
+                    $assigned_features[] = $feature;
                 }
             }
         }
@@ -122,91 +124,54 @@ if (!function_exists('etim_get_formatted_value')) {
         if (!$has_assigned_features) {
             continue;
         }
+
+        // Sort features by order number
+        usort($assigned_features, function($a, $b) {
+            $order_a = $a['orderNumber'] ?? 999;
+            $order_b = $b['orderNumber'] ?? 999;
+            return $order_a - $order_b;
+        });
+
+        $class_description = esc_html(etim_get_description($class, $use_swedish));
+        $group_info = '';
+        if (!empty($class['group'])) {
+            $group_info = esc_html(etim_get_description($class['group'], $use_swedish));
+        }
+        $accordion_id = 'etim-accordion-' . $index;
         ?>
 
-        <div class="etim-class-section etim-premium-card">
-            <div class="etim-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <line x1="10" y1="9" x2="8" y2="9"></line>
-                </svg>
+        <div class="etim-class-section etim-accordion-card">
+            <!-- Accordion Header -->
+            <div class="etim-accordion-header" onclick="(function(el){var c=el.closest('.etim-accordion-card');c.classList.toggle('etim-open');})(this)">
+                <div class="etim-accordion-title-wrap">
+                    <h3 class="etim-accordion-title"><?php echo $class_description; ?></h3>
+                    <?php if ($group_info) : ?>
+                        <p class="etim-accordion-subtitle">
+                            <?php echo esc_html($class_description); ?>
+                            (<?php esc_html_e('group', 'etim-for-woocommerce'); ?> : <?php echo $group_info; ?>)
+                        </p>
+                    <?php endif; ?>
+                </div>
+                <span class="etim-accordion-chevron">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </span>
             </div>
 
-            <h3 class="etim-class-title">
-                <?php echo esc_html(etim_get_description($class, $use_swedish)); ?>
-                <span class="etim-class-code">(<?php echo esc_html($class['code']); ?>)</span>
-                <span class="etim-info-icon" title="<?php echo esc_attr($class['code']); ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                </span>
-            </h3>
-
-            <?php if (!empty($class['group'])) : ?>
-                <p class="etim-group-info">
-                    <?php esc_html_e('Group:', 'etim-for-woocommerce'); ?>
-                    <?php echo esc_html(etim_get_description($class['group'], $use_swedish)); ?>
-                    <span class="etim-group-code">(<?php echo esc_html($class['group']['code'] ?? ''); ?>)</span>
-                </p>
-            <?php endif; ?>
-
-            <?php if (!empty($class['categories'])) : ?>
-                <p class="etim-group-info">
-                    <?php esc_html_e('Categories:', 'etim-for-woocommerce'); ?>
-                    <?php
-                    $cat_names = [];
-                    foreach ($class['categories'] as $cat) {
-                        $cat_names[] = esc_html(etim_get_description($cat, $use_swedish));
-                    }
-                    echo implode(' > ', $cat_names);
-                    ?>
-                    <?php if (!empty($class['categories'])) :
-                        $last_cat = end($class['categories']);
-                        if (!empty($last_cat['code'])) : ?>
-                            <span class="etim-group-code">(<?php echo esc_html($last_cat['code']); ?>)</span>
-                        <?php endif;
-                    endif; ?>
-                </p>
-            <?php endif; ?>
-
-            <table class="etim-features-table" style="--etim-header-color: <?php echo esc_attr($etim_color); ?>;">
-                <thead>
-                    <tr>
-                        <th class="etim-feature-name"><?php esc_html_e('Feature', 'etim-for-woocommerce'); ?></th>
-                        <th class="etim-feature-value"><?php esc_html_e('Value', 'etim-for-woocommerce'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $features = $class['features'];
-                    usort($features, function($a, $b) {
-                        $order_a = $a['orderNumber'] ?? 999;
-                        $order_b = $b['orderNumber'] ?? 999;
-                        return $order_a - $order_b;
-                    });
-
-                    foreach ($features as $feature) :
-                        $av = $feature['assignedValue'] ?? '';
-                        if (empty($av) && $av !== '0' && $av !== false) {
-                            continue;
-                        }
-                    ?>
-                        <tr>
-                            <td class="etim-feature-name">
-                                <span class="etim-feature-name-text"><?php echo esc_html(etim_get_description($feature, $use_swedish)); ?></span>
-                                <span class="etim-feature-code-sub">(<?php echo esc_html($feature['code']); ?>)</span>
-                                <span class="etim-info-icon" title="<?php echo esc_attr($feature['code'] . ': ' . etim_get_description($feature, $use_swedish)); ?>">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="<?php echo esc_attr($etim_color); ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                </span>
-                            </td>
-                            <td class="etim-feature-value">
+            <!-- Accordion Body - Feature Cards Grid -->
+            <div class="etim-accordion-body">
+                <div class="etim-features-card-grid">
+                    <?php foreach ($assigned_features as $feature) : ?>
+                        <div class="etim-feature-card-item">
+                            <div class="etim-feature-card-name" style="color: <?php echo esc_attr($etim_color); ?>;">
+                                <?php echo esc_html(etim_get_description($feature, $use_swedish)); ?>
+                            </div>
+                            <div class="etim-feature-card-value">
                                 <?php echo esc_html(etim_get_formatted_value($feature, $use_swedish)); ?>
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
+                </div>
+            </div>
         </div>
     <?php endforeach; ?>
 </div>
@@ -219,173 +184,133 @@ if (!function_exists('etim_get_formatted_value')) {
     line-height: 1.6;
 }
 
-.etim-premium-card {
-    background: #ffffff;
+/* Accordion Card */
+.etim-accordion-card {
+    background: #f9fafb;
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.04);
-    padding: 32px;
-    margin-bottom: 24px;
-    border: 1px solid #e8edf2;
-}
-
-.etim-card-icon {
-    text-align: center;
-    margin-bottom: 16px;
-}
-
-.etim-card-icon svg {
-    width: 32px;
-    height: 32px;
-}
-
-.etim-class-title {
-    font-size: 1.35em !important;
-    font-weight: 700 !important;
-    color: #0b3d6e !important;
-    margin: 0 0 12px 0 !important;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e8edf2;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.etim-class-code {
-    color: #94a3b8;
-    font-size: 0.7em;
-    font-weight: 400;
-}
-
-.etim-info-icon {
-    display: inline-flex;
-    align-items: center;
-    cursor: help;
-    vertical-align: middle;
-    position: relative;
-}
-
-.etim-info-icon svg {
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-.etim-info-icon:hover svg {
-    opacity: 1;
-}
-
-.etim-group-info {
-    color: #475569 !important;
-    font-size: 0.9em;
-    margin: 0 0 8px 0 !important;
-    text-align: center;
-}
-
-.etim-group-code {
-    color: #94a3b8;
-    font-size: 0.85em;
-}
-
-.etim-features-table {
-    width: 100%;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    margin-top: 16px;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e5e7eb;
     overflow: hidden;
 }
 
-.etim-features-table th,
-.etim-features-table td {
-    padding: 14px 20px !important;
-    text-align: center !important;
-    font-size: 0.92em;
-    vertical-align: middle !important;
-    border: none !important;
+.etim-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid transparent;
+    user-select: none;
 }
 
-.etim-features-table th {
-    background: var(--etim-header-color, #475569) !important;
+.etim-accordion-header:hover {
+    background: #f3f4f6;
+}
+
+.etim-accordion-card.etim-open .etim-accordion-header {
+    border-bottom-color: #e5e7eb;
+}
+
+.etim-accordion-title-wrap {
+    flex: 1;
+}
+
+.etim-accordion-title {
+    font-size: 1.1em !important;
     font-weight: 700 !important;
-    color: #ffffff !important;
-    border-bottom: 2px solid var(--etim-header-color, #475569) !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.etim-accordion-subtitle {
     font-size: 0.85em;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: #6b7280 !important;
+    margin: 4px 0 0 0 !important;
+    padding: 0 !important;
 }
 
-.etim-features-table tbody tr {
-    transition: background-color 0.15s ease;
+.etim-accordion-chevron {
+    color: #9ca3af;
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+    margin-left: 16px;
 }
 
-.etim-features-table tbody tr:nth-child(even) {
-    background-color: #f8fafc !important;
+.etim-accordion-card.etim-open .etim-accordion-chevron {
+    transform: rotate(180deg);
 }
 
-.etim-features-table tbody tr:nth-child(odd) {
-    background-color: #ffffff !important;
+/* Accordion Body */
+.etim-accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s ease;
+    padding: 0 28px;
 }
 
-.etim-features-table tbody tr:hover {
-    background-color: #f0f4ff !important;
+.etim-accordion-card.etim-open .etim-accordion-body {
+    max-height: 2000px;
+    padding: 24px 28px;
 }
 
-.etim-features-table td {
-    border-bottom: 1px solid #f1f5f9 !important;
-    color: #334155 !important;
+/* Feature Cards Grid - 2 columns */
+.etim-features-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
 }
 
-.etim-features-table tbody tr:last-child td {
-    border-bottom: none !important;
+.etim-feature-card-item {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 20px;
+    transition: box-shadow 0.2s;
 }
 
-.etim-feature-name {
-    width: 50%;
-    border-right: 1px solid #e2e8f0 !important;
+.etim-feature-card-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-td.etim-feature-name {
-    position: relative;
-}
-
-.etim-feature-name-text {
-    display: inline;
-    color: #1e293b;
-    font-weight: 500;
-}
-
-.etim-feature-code-sub {
-    display: block;
-    color: #94a3b8;
-    font-size: 0.78em;
-    margin-top: 2px;
-}
-
-td.etim-feature-name .etim-info-icon {
-    margin-left: 6px;
-}
-
-td.etim-feature-value {
+.etim-feature-card-name {
+    font-size: 0.92em;
     font-weight: 600;
-    color: #0f172a !important;
+    color: var(--etim-accent, #4888E8);
+    margin-bottom: 6px;
+}
+
+.etim-feature-card-value {
+    font-size: 0.88em;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Auto-open first accordion */
+.etim-accordion-card:first-child {
+    /* Will be opened by JS below */
 }
 
 @media screen and (max-width: 768px) {
-    .etim-premium-card {
-        padding: 20px;
-        border-radius: 8px;
+    .etim-features-card-grid {
+        grid-template-columns: 1fr;
     }
 
-    .etim-features-table th,
-    .etim-features-table td {
-        padding: 10px 14px !important;
+    .etim-accordion-header {
+        padding: 16px 20px;
     }
 
-    .etim-class-title {
-        font-size: 1.15em !important;
+    .etim-accordion-card.etim-open .etim-accordion-body {
+        padding: 16px 20px;
     }
 }
 </style>
+
+<script>
+(function(){
+    // Auto-open first accordion
+    var firstCard = document.querySelector('.etim-accordion-card');
+    if (firstCard) firstCard.classList.add('etim-open');
+})();
+</script>

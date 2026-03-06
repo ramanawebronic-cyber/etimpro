@@ -153,6 +153,43 @@ class ETIM_Feature_Access {
     }
 
     // ========================================================================
+    // LICENSE STATUS
+    // ========================================================================
+
+    /**
+     * Check if user has an active license key
+     */
+    public function has_active_license() {
+        $license_manager = ETIM_License_Manager::get_instance();
+        return $license_manager->has_active_license();
+    }
+
+    /**
+     * Get the number of products allowed to display on the frontend based on plan.
+     * No active license = 0 (show nothing).
+     * Manufacturer = 5, Distributor = 10, WooCommerce Agency = unlimited.
+     */
+    public function get_frontend_product_limit() {
+        if (!$this->has_active_license()) {
+            return 0;
+        }
+
+        $plan = $this->get_current_plan();
+
+        switch ($plan) {
+            case ETIM_License_Manager::PLAN_ERP:
+                return PHP_INT_MAX;
+            case ETIM_License_Manager::PLAN_DISTRIBUTOR:
+                return 10;
+            case ETIM_License_Manager::PLAN_MANUFACTURER:
+                return 5;
+            case ETIM_License_Manager::PLAN_FREE:
+            default:
+                return 0;
+        }
+    }
+
+    // ========================================================================
     // FEATURE ACCESS CHECKS
     // ========================================================================
 

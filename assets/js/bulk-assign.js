@@ -21,19 +21,19 @@
         },
 
         cacheElements: function () {
-            this.$container     = $('#etim-bulk-container');
-            this.$groupSelect   = $('#etim-bulk-group-select');
-            this.$classSelect   = $('#etim-bulk-class-select');
-            this.$classRow      = $('#etim-bulk-class-row');
+            this.$container = $('#etim-bulk-container');
+            this.$groupSelect = $('#etim-bulk-group-select');
+            this.$classSelect = $('#etim-bulk-class-select');
+            this.$classRow = $('#etim-bulk-class-row');
             this.$featuresSection = $('#etim-bulk-features-section');
-            this.$featuresGrid  = $('#etim-bulk-features-grid');
-            this.$loading       = $('#etim-bulk-loading');
-            this.$saveBtn       = $('#etim-bulk-save-btn');
-            this.$saveStatus    = $('#etim-bulk-save-status');
-            this.$dataJson      = $('#etim-bulk-data-json');
-            this.$productIds    = $('#etim-bulk-product-ids');
-            this.$clearGroup    = $('#etim-bulk-clear-group');
-            this.$clearClass    = $('#etim-bulk-clear-class');
+            this.$featuresGrid = $('#etim-bulk-features-grid');
+            this.$loading = $('#etim-bulk-loading');
+            this.$saveBtn = $('#etim-bulk-save-btn');
+            this.$saveStatus = $('#etim-bulk-save-status');
+            this.$dataJson = $('#etim-bulk-data-json');
+            this.$productIds = $('#etim-bulk-product-ids');
+            this.$clearGroup = $('#etim-bulk-clear-group');
+            this.$clearClass = $('#etim-bulk-clear-class');
         },
 
         initSelect2: function (element) {
@@ -659,9 +659,62 @@
             }
         },
 
+        /**
+         * Validate feature values are filled (mandatory when features are added)
+         */
+        validateFeatureValues: function () {
+            if (this.assignedFeatures.length === 0) {
+                return true;
+            }
+
+            var emptyFeatures = [];
+            var self = this;
+
+            this.assignedFeatures.forEach(function (feature) {
+                var val = feature.assignedValue;
+                var isEmpty = false;
+                if (val === '' || val === null || val === undefined) isEmpty = true;
+                else if (typeof val === 'object' && val !== null && !val.code && !val.description) isEmpty = true;
+                else if (typeof val === 'string' && (val === '::' || val.trim() === '')) isEmpty = true;
+                if (isEmpty) emptyFeatures.push(feature.description || feature.code);
+            });
+
+            if (emptyFeatures.length > 0) {
+                this.$featuresGrid.find('.etim-feature-card').each(function () {
+                    var code = $(this).data('feature-code');
+                    var feature = self.assignedFeatures.find(function (f) { return f.code === code; });
+                    if (feature) {
+                        var val = feature.assignedValue;
+                        var isEmpty = false;
+                        if (val === '' || val === null || val === undefined) isEmpty = true;
+                        else if (typeof val === 'object' && val !== null && !val.code && !val.description) isEmpty = true;
+                        else if (typeof val === 'string' && (val === '::' || val.trim() === '')) isEmpty = true;
+                        if (isEmpty) {
+                            $(this).addClass('etim-validation-error');
+                            $(this).find('.etim-feature-value-field').addClass('etim-field-required');
+                        } else {
+                            $(this).removeClass('etim-validation-error');
+                            $(this).find('.etim-feature-value-field').removeClass('etim-field-required');
+                        }
+                    }
+                });
+                this.$saveStatus.addClass('error').text('Please fill in all feature values. ' + emptyFeatures.length + ' feature(s) missing values.');
+                return false;
+            }
+
+            this.$featuresGrid.find('.etim-feature-card').removeClass('etim-validation-error');
+            this.$featuresGrid.find('.etim-feature-value-field').removeClass('etim-field-required');
+            return true;
+        },
+
         saveData: function () {
             var self = this;
             this.updateDataJson();
+
+            // Validate feature values are filled (mandatory)
+            if (!this.validateFeatureValues()) {
+                return;
+            }
 
             var jsonVal = this.$dataJson.val();
             var productIds = this.$productIds.val();
