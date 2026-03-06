@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Mail, MessageSquare, Phone, MapPin, Send, Clock, ArrowRight } from "lucide-react";
+import { Mail, MessageSquare, Phone, MapPin, Send, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 export default function ContactPage() {
@@ -13,10 +13,34 @@ export default function ContactPage() {
         message: "",
     });
     const [submitted, setSubmitted] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitted(true);
+        setLoading(true);
+        setError("");
+
+        try {
+            const res = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to send message");
+            }
+
+            setSubmitted(true);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+            setError(message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -86,7 +110,7 @@ export default function ContactPage() {
                                     <div className="h-16 w-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-6">
                                         <Send className="h-7 w-7" />
                                     </div>
-                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">Message Sent!</h3>
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">Message Sent Successfully!</h3>
                                     <p className="text-slate-500 max-w-md mx-auto">
                                         Thank you for reaching out. Our team will review your message and respond within 24 hours.
                                     </p>
@@ -94,6 +118,7 @@ export default function ContactPage() {
                                         className="mt-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white px-8"
                                         onClick={() => {
                                             setSubmitted(false);
+                                            setError("");
                                             setFormData({ name: "", email: "", company: "", subject: "", message: "" });
                                         }}
                                     >
@@ -102,6 +127,12 @@ export default function ContactPage() {
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className="space-y-5">
+                                    {error && (
+                                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                                            {error}
+                                        </div>
+                                    )}
+
                                     <div className="grid sm:grid-cols-2 gap-5">
                                         <div>
                                             <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -138,7 +169,7 @@ export default function ContactPage() {
                                     <div className="grid sm:grid-cols-2 gap-5">
                                         <div>
                                             <label htmlFor="company" className="block text-sm font-medium text-slate-700 mb-1.5">
-                                                Company
+                                                Company Name
                                             </label>
                                             <input
                                                 type="text"
@@ -190,10 +221,20 @@ export default function ContactPage() {
 
                                     <Button
                                         type="submit"
-                                        className="w-full sm:w-auto h-12 px-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-base font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all"
+                                        disabled={loading}
+                                        className="w-full sm:w-auto h-12 px-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-base font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                                     >
-                                        Send Message
-                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Send Message
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </>
+                                        )}
                                     </Button>
                                 </form>
                             )}

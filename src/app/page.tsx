@@ -6,6 +6,7 @@ import { MultiLanguageSection } from "@/components/multi-language";
 import { HowItWorksSection } from "@/components/how-it-works";
 import { PricingSection } from "@/components/pricing";
 import { FAQSection } from "@/components/faq";
+import { StatsCounter } from "@/components/stats-counter";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -46,6 +47,8 @@ export default function Home() {
       <FeaturesSection />
 
       <HowItWorksSection />
+
+      <StatsCounter />
 
       <div id="pricing">
         <PricingSection />

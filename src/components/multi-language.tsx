@@ -1,24 +1,25 @@
+/* eslint-disable @next/next/no-img-element */
 import { Badge } from "@/components/ui/badge";
 import { Globe, Check, Languages, ArrowRight } from "lucide-react";
 
 const languages = [
-    { code: "EN", name: "English", flag: "🇬🇧", sample: "LED Panel Light" },
-    { code: "DE", name: "German", flag: "🇩🇪", sample: "LED-Panelleuchte" },
-    { code: "FR", name: "French", flag: "🇫🇷", sample: "Panneau LED" },
-    { code: "NL", name: "Dutch", flag: "🇳🇱", sample: "LED Paneelverlichting" },
-    { code: "SV", name: "Swedish", flag: "🇸🇪", sample: "LED-panellampa" },
-    { code: "ES", name: "Spanish", flag: "🇪🇸", sample: "Panel LED" },
-    { code: "IT", name: "Italian", flag: "🇮🇹", sample: "Pannello LED" },
-    { code: "PL", name: "Polish", flag: "🇵🇱", sample: "Panel LED" },
-    { code: "PT", name: "Portuguese", flag: "🇵🇹", sample: "Painel LED" },
-    { code: "DA", name: "Danish", flag: "🇩🇰", sample: "LED-panel" },
-    { code: "FI", name: "Finnish", flag: "🇫🇮", sample: "LED-paneeli" },
-    { code: "NO", name: "Norwegian", flag: "🇳🇴", sample: "LED-panellampe" },
-    { code: "CS", name: "Czech", flag: "🇨🇿", sample: "LED panel" },
-    { code: "HU", name: "Hungarian", flag: "🇭🇺", sample: "LED panel" },
-    { code: "RO", name: "Romanian", flag: "🇷🇴", sample: "Panou LED" },
-    { code: "SK", name: "Slovak", flag: "🇸🇰", sample: "LED panel" },
-    { code: "TR", name: "Turkish", flag: "🇹🇷", sample: "LED Panel" },
+    { code: "EN", name: "English", countryCode: "gb", sample: "LED Panel Light" },
+    { code: "DE", name: "German", countryCode: "de", sample: "LED-Panelleuchte" },
+    { code: "FR", name: "French", countryCode: "fr", sample: "Panneau LED" },
+    { code: "NL", name: "Dutch", countryCode: "nl", sample: "LED Paneelverlichting" },
+    { code: "SV", name: "Swedish", countryCode: "se", sample: "LED-panellampa" },
+    { code: "ES", name: "Spanish", countryCode: "es", sample: "Panel LED" },
+    { code: "IT", name: "Italian", countryCode: "it", sample: "Pannello LED" },
+    { code: "PL", name: "Polish", countryCode: "pl", sample: "Panel LED" },
+    { code: "PT", name: "Portuguese", countryCode: "pt", sample: "Painel LED" },
+    { code: "DA", name: "Danish", countryCode: "dk", sample: "LED-panel" },
+    { code: "FI", name: "Finnish", countryCode: "fi", sample: "LED-paneeli" },
+    { code: "NO", name: "Norwegian", countryCode: "no", sample: "LED-panellampe" },
+    { code: "CS", name: "Czech", countryCode: "cz", sample: "LED panel" },
+    { code: "HU", name: "Hungarian", countryCode: "hu", sample: "LED panel" },
+    { code: "RO", name: "Romanian", countryCode: "ro", sample: "Panou LED" },
+    { code: "SK", name: "Slovak", countryCode: "sk", sample: "LED panel" },
+    { code: "TR", name: "Turkish", countryCode: "tr", sample: "LED Panel" },
 ];
 
 export function MultiLanguageSection() {
@@ -76,7 +77,14 @@ export function MultiLanguageSection() {
                                     <div className="space-y-2">
                                         {languages.slice(0, 6).map((lang, i) => (
                                             <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/70 transition-colors text-sm">
-                                                <span className="text-lg leading-none">{lang.flag}</span>
+                                                <img
+                                                    src={`https://flagcdn.com/w40/${lang.countryCode}.png`}
+                                                    alt={lang.name}
+                                                    width={24}
+                                                    height={18}
+                                                    className="rounded-sm object-cover"
+                                                    loading="lazy"
+                                                />
                                                 <span className="font-medium text-slate-400 w-8 text-xs uppercase">{lang.code}</span>
                                                 <span className="text-slate-700 flex-1">{lang.sample}</span>
                                                 <Check className="h-4 w-4 text-emerald-500" />
@@ -95,7 +103,14 @@ export function MultiLanguageSection() {
                                 <div className="flex flex-wrap gap-2">
                                     {languages.map((lang, i) => (
                                         <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 rounded-lg text-xs font-medium text-emerald-700 border border-emerald-100">
-                                            <span className="text-sm leading-none">{lang.flag}</span>
+                                            <img
+                                                src={`https://flagcdn.com/w20/${lang.countryCode}.png`}
+                                                alt={lang.name}
+                                                width={16}
+                                                height={12}
+                                                className="rounded-sm object-cover"
+                                                loading="lazy"
+                                            />
                                             {lang.code}
                                         </div>
                                     ))}

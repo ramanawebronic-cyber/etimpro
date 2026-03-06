@@ -29,7 +29,7 @@ export function Footer() {
                             <div className="space-y-2.5">
                                 <div className="flex items-center gap-2.5 text-sm text-slate-500">
                                     <MapPin className="h-4 w-4 text-blue-500 shrink-0" />
-                                    <span>Sockerbruksgatan 753140 Lidk&ouml;ping</span>
+                                    <span className="whitespace-nowrap">Sockerbruksgatan 753140 Lidk&ouml;ping</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-sm text-slate-500">
                                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />
