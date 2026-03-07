@@ -54,6 +54,14 @@ export default function LoginPage() {
                 localStorage.setItem("etim_user_nicename", data.user_nicename);
                 localStorage.setItem("etim_user_display_name", data.user_display_name);
 
+                // New License & Balance Fields
+                localStorage.setItem("etim_license_key", data.license_key || "");
+                localStorage.setItem("etim_license_status", data.license_status || "");
+                localStorage.setItem("etim_plan_name", data.plan_name || "");
+                localStorage.setItem("etim_expire_date", data.expire_date || "");
+                localStorage.setItem("etim_pln_amount", data.pln_amount || "0.00");
+                localStorage.setItem("etim_balance", data.balance || "0.00");
+
                 // Redirect to my-account
                 window.location.href = "/my-account";
             } else {

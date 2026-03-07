@@ -14,7 +14,10 @@ import {
     FileText,
     Download,
     UserCircle,
-    CheckCircle2
+    CheckCircle2,
+    RefreshCw,
+    Wallet,
+    Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -22,14 +25,33 @@ interface UserData {
     email: string;
     nicename: string;
     displayName: string;
+    licenseKey: string;
+    licenseStatus: string;
+    planName: string;
+    expireDate: string;
+    plnAmount: string;
+    balance: string;
 }
 
 type TabType = "license" | "subscriptions" | "invoices" | "downloads" | "profile";
 
 export default function MyAccountPage() {
-    const [user, setUser] = useState<UserData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<TabType>("license");
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadUserData = () => {
+        const userData: UserData = {
+            email: localStorage.getItem("etim_user_email") || "",
+            nicename: localStorage.getItem("etim_user_nicename") || "",
+            displayName: localStorage.getItem("etim_user_display_name") || "",
+            licenseKey: localStorage.getItem("etim_license_key") || "XXXX-XXXX-XXXX-XXXX",
+            licenseStatus: localStorage.getItem("etim_license_status") || "unknown",
+            planName: localStorage.getItem("etim_plan_name") || "No Active Plan",
+            expireDate: localStorage.getItem("etim_expire_date") || "Never",
+            plnAmount: localStorage.getItem("etim_pln_amount") || "0.00",
+            balance: localStorage.getItem("etim_balance") || "0.00",
+        };
+        setUser(userData);
+    };
 
     useEffect(() => {
         const token = localStorage.getItem("etim_token");
@@ -37,22 +59,38 @@ export default function MyAccountPage() {
             window.location.href = "/login";
             return;
         }
-
-        const userData = {
-            email: localStorage.getItem("etim_user_email") || "",
-            nicename: localStorage.getItem("etim_user_nicename") || "",
-            displayName: localStorage.getItem("etim_user_display_name") || "",
-        };
-
-        setUser(userData);
+        loadUserData();
         setLoading(false);
     }, []);
 
+    const refreshData = async () => {
+        if (!user?.email) return;
+        setRefreshing(true);
+        try {
+            // Using the same URL logic as login
+            const WORDPRESS_URL = "http://etim.test";
+            const res = await fetch(`${WORDPRESS_URL}/index.php?rest_route=/etim/v1/license&email=${user.email}`);
+            const result = await res.json();
+
+            if (result.success && result.data) {
+                const d = result.data;
+                localStorage.setItem("etim_license_key", d.license_key || "");
+                localStorage.setItem("etim_license_status", d.license_status || "");
+                localStorage.setItem("etim_plan_name", d.plan_name || "");
+                localStorage.setItem("etim_expire_date", d.expire_date || "");
+                localStorage.setItem("etim_pln_amount", d.pln_amount || "0.00");
+                localStorage.setItem("etim_balance", d.balance || "0.00");
+                loadUserData();
+            }
+        } catch (err) {
+            console.error("Failed to refresh data", err);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const handleLogout = () => {
-        localStorage.removeItem("etim_token");
-        localStorage.removeItem("etim_user_email");
-        localStorage.removeItem("etim_user_nicename");
-        localStorage.removeItem("etim_user_display_name");
+        localStorage.clear();
         window.location.href = "/login";
     };
 
@@ -74,9 +112,21 @@ export default function MyAccountPage() {
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                         <h2 className="text-2xl font-bold text-slate-900 px-2">License Keys</h2>
                         <div className="grid gap-4">
-                            <LicenseCard keyString="ETIM-PRO-3928-1122" domain="etim.test" status="active" />
-                            <LicenseCard keyString="ETIM-DEV-4400-8811" domain="dev.etim.pro" status="active" />
-                            <LicenseCard keyString="ETIM-OLD-1100-2200" domain="test.etim.local" status="expired" />
+                            <LicenseCard
+                                keyString={user?.licenseKey || "XXXX-XXXX-XXXX-XXXX"}
+                                domain="Primary Account"
+                                status={user?.licenseStatus === 'active' ? 'active' : 'expired'}
+                            />
+                            <div className="bg-white p-8 rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white to-blue-50/30">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg">
+                                        <Wallet className="w-5 h-5" />
+                                    </div>
+                                    <h3 className="font-black text-slate-900 border-b-2 border-blue-600 pb-1">Current Balance</h3>
+                                </div>
+                                <div className="text-4xl font-black text-slate-900">${user?.balance}</div>
+                                <p className="text-slate-500 text-xs font-bold mt-2">Available credits for API high-performance classification.</p>
+                            </div>
                         </div>
                     </motion.div>
                 );
@@ -87,13 +137,15 @@ export default function MyAccountPage() {
                         <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-100">
                                 <div>
-                                    <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded-full tracking-widest">Enterprise Plan</span>
-                                    <h3 className="text-4xl font-black text-slate-900 mt-2">Professional Pro</h3>
-                                    <p className="text-slate-500 mt-1">Full access to ETIM 9.0 automated classification toolset.</p>
+                                    <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full tracking-widest ${user?.licenseStatus === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                        {user?.licenseStatus || 'No Plan'}
+                                    </span>
+                                    <h3 className="text-4xl font-black text-slate-900 mt-2">{user?.planName}</h3>
+                                    <p className="text-slate-500 mt-1">Classification limits and API access for your WooCommerce store.</p>
                                 </div>
                                 <div className="text-center md:text-right">
-                                    <p className="text-4xl font-black text-blue-600">$49<span className="text-sm font-medium text-slate-400">/mo</span></p>
-                                    <p className="text-xs text-slate-400 mt-1">Next bill: Oct 12, 2026</p>
+                                    <p className="text-4xl font-black text-blue-600">${user?.plnAmount}<span className="text-sm font-medium text-slate-400">/total</span></p>
+                                    <p className="text-xs text-slate-400 mt-1">Expires: {user?.expireDate || 'N/A'}</p>
                                 </div>
                             </div>
                             <div className="grid sm:grid-cols-2 gap-4 mt-8">
@@ -217,23 +269,40 @@ export default function MyAccountPage() {
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
                                     <h1 className="text-3xl font-bold text-slate-900">{user?.displayName}</h1>
                                     <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-wider">
-                                        Active Subscriber
+                                        {user?.planName}
+                                    </span>
+                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full border border-emerald-100 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                                        <Wallet className="w-3 h-3" />
+                                        ${user?.balance}
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-center md:justify-start gap-4 text-slate-500">
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-slate-500">
                                     <div className="flex items-center gap-1.5">
                                         <Mail className="w-4 h-4 text-slate-400" />
                                         <span className="text-sm">{user?.email}</span>
                                     </div>
-                                    <div className="hidden sm:flex items-center gap-1.5 font-bold">
+                                    <div className="flex items-center gap-1.5 font-bold">
                                         <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                                        <span className="text-sm">99% Accuracy Rate</span>
+                                        <span className="text-sm">Status: {user?.licenseStatus}</span>
+                                    </div>
+                                    <div className="hidden sm:flex items-center gap-1.5 font-bold text-blue-500">
+                                        <Clock className="w-4 h-4" />
+                                        <span className="text-sm">Expires: {user?.expireDate}</span>
                                     </div>
                                 </div>
                             </motion.div>
                         </div>
 
                         <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={refreshData}
+                                disabled={refreshing}
+                                className="rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white font-bold transition-all"
+                            >
+                                {refreshing ? "Refreshing..." : "Refresh Status"}
+                                <RefreshCw className={`ml-2 w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                            </Button>
                             <Button
                                 variant="outline"
                                 onClick={handleLogout}
