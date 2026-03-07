@@ -17,7 +17,12 @@ import {
     CheckCircle2,
     RefreshCw,
     Wallet,
-    Clock
+    Clock,
+    Check,
+    Copy,
+    X,
+    Eye,
+    EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,8 +40,31 @@ interface UserData {
 
 type TabType = "license" | "subscriptions" | "invoices" | "downloads" | "profile";
 
+const capitalize = (s: string) => {
+    if (!s) return "";
+    const p = s.toLowerCase();
+    if (p.includes("distributor")) return "Distributor Plan";
+    if (p.includes("manufactur")) return "Manufacturer Plan";
+    if (p.includes("agency")) return "Agency Plan";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+const getPrice = (plan: string | undefined) => {
+    const p = (plan || "").toLowerCase();
+    if (p.includes("manufactur")) return "29.00";
+    if (p.includes("distributor")) return "79.00";
+    if (p.includes("agency") || p.includes("enterprise")) return "199.00";
+    return "0.00";
+};
+
 export default function MyAccountPage() {
+    const [user, setUser] = useState<UserData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<TabType>("license");
     const [refreshing, setRefreshing] = useState(false);
+    const [showKey, setShowKey] = useState(false);
+    const [showReceiptModal, setShowReceiptModal] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     const loadUserData = () => {
         const userData: UserData = {
@@ -106,26 +134,64 @@ export default function MyAccountPage() {
     }
 
     const renderContent = () => {
+        const planPrice = getPrice(user?.planName);
+
         switch (activeTab) {
             case "license":
                 return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <h2 className="text-2xl font-bold text-slate-900 px-2">License Keys</h2>
-                        <div className="grid gap-4">
-                            <LicenseCard
-                                keyString={user?.licenseKey || "XXXX-XXXX-XXXX-XXXX"}
-                                domain="Primary Account"
-                                status={user?.licenseStatus === 'active' ? 'active' : 'expired'}
-                            />
-                            <div className="bg-white p-8 rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white to-blue-50/30">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg">
-                                        <Wallet className="w-5 h-5" />
+                    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+                        <h2 className="text-3xl font-black text-slate-900 mb-8 pl-1">License</h2>
+
+                        {/* Masked Key Box */}
+                        <div className="bg-white p-5 rounded-3xl border border-blue-100 shadow-sm flex items-center justify-between group hover:border-blue-400 transition-all">
+                            <code className="text-blue-600 font-black tracking-[0.3em] overflow-hidden truncate max-w-[80%]">
+                                {showKey ? user?.licenseKey : `****************${user?.licenseKey.slice(-4) || "XXXX"}`}
+                            </code>
+                            <button
+                                onClick={() => setShowKey(!showKey)}
+                                className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white transition-all"
+                            >
+                                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+
+                        {/* Plan Details Card */}
+                        <div className="bg-white p-10 rounded-[2.5rem] border-2 border-emerald-500 shadow-xl relative overflow-hidden group">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+                                <div className="space-y-6 flex-1">
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 shadow-sm">
+                                            <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                                <Check className="w-3 h-3 text-white" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Status: {user?.licenseStatus}</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-400">{capitalize(user?.planName || "")} (Annual)</span>
                                     </div>
-                                    <h3 className="font-black text-slate-900 border-b-2 border-blue-600 pb-1">Current Balance</h3>
+
+                                    <div className="space-y-2">
+                                        <div className="w-16 h-16 rounded-xl bg-blue-50 flex items-center justify-center mb-6">
+                                            <Package className="w-10 h-10 text-blue-600" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-900">{capitalize(user?.planName || "")}</h3>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-4xl font-black text-blue-600">${planPrice}</span>
+                                            <span className="text-sm font-bold text-slate-400">per year (Annual)</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="text-4xl font-black text-slate-900">${user?.balance}</div>
-                                <p className="text-slate-500 text-xs font-bold mt-2">Available credits for API high-performance classification.</p>
+
+                                <div className="space-y-6 flex-1 w-full md:w-auto md:text-right">
+                                    <div className="md:text-right mb-8">
+                                        <p className="text-xs font-bold text-slate-400 mb-1">Trial Plan / Live Plan Valid Until</p>
+                                        <p className="text-lg font-black text-emerald-600">{user?.expireDate}</p>
+                                    </div>
+                                    <div className="space-y-4 md:flex md:flex-col md:items-end">
+                                        <FeatureItem text="Unlimited Classifications" />
+                                        <FeatureItem text="Unlimited Domain Sync" />
+                                        <FeatureItem text="Priority Live Support" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -140,11 +206,11 @@ export default function MyAccountPage() {
                                     <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full tracking-widest ${user?.licenseStatus === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                                         {user?.licenseStatus || 'No Plan'}
                                     </span>
-                                    <h3 className="text-4xl font-black text-slate-900 mt-2">{user?.planName}</h3>
+                                    <h3 className="text-4xl font-black text-slate-900 mt-2">{capitalize(user?.planName || "")}</h3>
                                     <p className="text-slate-500 mt-1">Classification limits and API access for your WooCommerce store.</p>
                                 </div>
                                 <div className="text-center md:text-right">
-                                    <p className="text-4xl font-black text-blue-600">${user?.plnAmount}<span className="text-sm font-medium text-slate-400">/total</span></p>
+                                    <p className="text-4xl font-black text-blue-600">${planPrice}<span className="text-sm font-medium text-slate-400">/total</span></p>
                                     <p className="text-xs text-slate-400 mt-1">Expires: {user?.expireDate || 'N/A'}</p>
                                 </div>
                             </div>
@@ -180,14 +246,22 @@ export default function MyAccountPage() {
             case "invoices":
                 return (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <h2 className="text-2xl font-bold text-slate-900 px-2">Billing History</h2>
-                        <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-                            <div className="p-4 space-y-2">
-                                <InvoiceItem id="EB-8273" date="Oct 12, 2026" amount="49.00" status="Paid" />
-                                <InvoiceItem id="EB-8272" date="Sep 12, 2026" amount="49.00" status="Paid" />
-                                <InvoiceItem id="EB-8271" date="Aug 12, 2026" amount="49.00" status="Paid" />
-                                <InvoiceItem id="EB-8270" date="Jul 12, 2026" amount="49.00" status="Paid" />
-                                <InvoiceItem id="EB-8269" date="Jun 12, 2026" amount="49.00" status="Paid" />
+                        <h2 className="text-3xl font-black text-slate-900 px-2 pb-4">Invoices</h2>
+                        <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+                            <div className="grid grid-cols-4 p-6 border-b border-slate-50 bg-slate-50/50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <div>ID</div>
+                                <div>Date</div>
+                                <div>Amount</div>
+                                <div className="text-center">Actions</div>
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                                <InvoiceItem
+                                    id="#523"
+                                    date="February 27, 2026"
+                                    amount={planPrice}
+                                    onShowReceipt={() => setShowReceiptModal(true)}
+                                    onShowDetails={() => setShowDetailsModal(true)}
+                                />
                             </div>
                         </div>
                     </motion.div>
@@ -195,12 +269,35 @@ export default function MyAccountPage() {
             case "downloads":
                 return (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <h2 className="text-2xl font-bold text-slate-900 px-2">Available Downloads</h2>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            <DownloadCard title="ETIM Pro Core Source" version="2.4.0" size="1.2 MB" />
-                            <DownloadCard title="Bulk Classification Tool" version="1.1.2" size="450 KB" />
-                            <DownloadCard title="ETIM Taxonomy Dataset" version="v9.0 Stable" size="8.9 MB" />
-                            <DownloadCard title="API Integration SDK" version="1.0.1" size="210 KB" />
+                        <h2 className="text-3xl font-black text-slate-900 px-2">Downloads</h2>
+                        <div className="bg-white p-12 rounded-[3rem] border-2 border-slate-100 shadow-xl overflow-hidden relative group">
+                            <Download className="absolute -bottom-10 -right-10 w-64 h-64 text-slate-50 group-hover:text-blue-50 transition-all opacity-50" />
+                            <div className="relative z-10">
+                                <div className="w-20 h-20 rounded-3xl bg-blue-600 flex items-center justify-center text-white shadow-2xl shadow-blue-600/20 mb-10">
+                                    <Package className="w-10 h-10" />
+                                </div>
+                                <h3 className="text-3xl font-black text-slate-900 mb-4">ETIM Pro Enterprise Kit</h3>
+                                <p className="text-slate-500 font-bold mb-10 max-w-md">Download the full suite including core source code, bulk classification tools, and the latest taxonomy datasets. All in one single package.</p>
+
+                                <div className="grid sm:grid-cols-3 gap-6 mb-12">
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Version</p>
+                                        <p className="font-bold text-slate-900">v2.4.0 Final</p>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">File Size</p>
+                                        <p className="font-bold text-slate-900">12.5 MB</p>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Format</p>
+                                        <p className="font-bold text-slate-900">ZIP / PDF</p>
+                                    </div>
+                                </div>
+
+                                <Button className="w-full bg-slate-900 hover:bg-black text-white rounded-2xl font-black py-8 shadow-2xl shadow-slate-900/20 text-lg transition-all active:scale-[0.98]">
+                                    Download Full Bundle (.zip)
+                                </Button>
+                            </div>
                         </div>
                     </motion.div>
                 );
@@ -269,11 +366,7 @@ export default function MyAccountPage() {
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2">
                                     <h1 className="text-3xl font-bold text-slate-900">{user?.displayName}</h1>
                                     <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-wider">
-                                        {user?.planName}
-                                    </span>
-                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full border border-emerald-100 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
-                                        <Wallet className="w-3 h-3" />
-                                        ${user?.balance}
+                                        {capitalize(user?.planName || "")}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-slate-500">
@@ -346,11 +439,17 @@ export default function MyAccountPage() {
                     {/* Main Content Area */}
                     <div className="lg:col-span-8">
                         <AnimatePresence mode="wait">
-                            {renderContent()}
+                            <div key={activeTab}>
+                                {renderContent()}
+                            </div>
                         </AnimatePresence>
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            <LicenseDetailsModal isOpen={showDetailsModal} onClose={() => setShowDetailsModal(false)} user={user} />
+            <ReceiptModal isOpen={showReceiptModal} onClose={() => setShowReceiptModal(false)} user={user} />
         </div>
     );
 }
@@ -370,76 +469,33 @@ function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNo
     );
 }
 
-function LicenseCard({ keyString, domain, status }: { keyString: string, domain: string, status: 'active' | 'expired' }) {
-    return (
-        <div className={`p-6 bg-white border border-slate-100 rounded-3xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 hover:shadow-lg hover:border-blue-100 transition-all ${status === "expired" ? "opacity-60" : ""}`}>
-            <div className="flex items-center gap-5">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${status === "active" ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-400"}`}>
-                    <Key className="w-6 h-6" />
-                </div>
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-red-50 text-red-600"}`}>
-                            {status}
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">Enterprise Plus</span>
-                    </div>
-                    <code className="text-xl font-black text-slate-900 tracking-tight">{keyString}</code>
-                    <p className="text-xs text-slate-400 mt-0.5">Primary Domain: <span className="text-blue-600 font-bold">{domain}</span></p>
-                </div>
-            </div>
-            <Button variant="outline" className={`rounded-xl px-10 font-bold h-12 transition-all ${status === "active" ? "hover:bg-red-50 hover:text-red-500 hover:border-red-100" : "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100"}`}>
-                {status === "active" ? "Deactivate" : "Renew Plan"}
-            </Button>
-        </div>
-    );
-}
 
-function InvoiceItem({ id, date, amount, status }: { id: string, date: string, amount: string, status: string }) {
+
+function InvoiceItem({ id, date, amount, onShowReceipt, onShowDetails }: { id: string, date: string, amount: string, onShowReceipt: () => void, onShowDetails: () => void }) {
     return (
-        <div className="flex items-center justify-between p-5 hover:bg-slate-50 transition-all rounded-2xl group">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors shadow-sm">
-                    <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-900">Subscription Invoice {id}</h4>
-                    <p className="text-xs text-slate-400 font-medium">Auto-renewed on {date}</p>
-                </div>
-            </div>
-            <div className="flex items-center gap-10">
-                <div className="text-right">
-                    <p className="text-lg font-black text-slate-900">${amount}</p>
-                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest px-2 py-0.5 bg-emerald-50 rounded">{status}</span>
-                </div>
-                <button className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                    <Download className="w-4 h-4" />
+        <div className="grid grid-cols-4 items-center p-6 hover:bg-slate-50 transition-all group">
+            <div className="font-bold text-slate-900">{id}</div>
+            <div className="text-sm font-bold text-slate-500">{date}</div>
+            <div className="font-black text-slate-900">${amount}</div>
+            <div className="flex items-center justify-center gap-3">
+                <button
+                    onClick={onShowReceipt}
+                    className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                >
+                    <FileText className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={onShowDetails}
+                    className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                >
+                    <Key className="w-4 h-4" />
                 </button>
             </div>
         </div>
     );
 }
 
-function DownloadCard({ title, version, size }: { title: string, version: string, size: string }) {
-    return (
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-            <Download className="absolute -bottom-4 -right-4 w-24 h-24 text-slate-50 group-hover:text-blue-50 transition-colors" />
-            <div className="flex justify-between items-start mb-6">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <Download className="w-5 h-5" />
-                </div>
-                <div className="text-right">
-                    <p className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">v{version}</p>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1.5">{size}</p>
-                </div>
-            </div>
-            <h4 className="text-xl font-bold text-slate-900 mb-6">{title}</h4>
-            <Button className="w-full bg-slate-900 hover:bg-black text-white rounded-xl font-bold py-6 shadow-lg shadow-slate-900/10">
-                Download zip
-            </Button>
-        </div>
-    );
-}
+
 
 function ProfileItem({ label, value }: { label: string, value: string | undefined }) {
     return (
@@ -448,6 +504,181 @@ function ProfileItem({ label, value }: { label: string, value: string | undefine
             <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-900 font-bold overflow-hidden truncate">
                 {value || "Not specified"}
             </div>
+        </div>
+    );
+}
+
+function FeatureItem({ text }: { text: string }) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                <CheckCircle2 className="w-3 h-3 text-blue-600" />
+            </div>
+            <span className="text-sm font-bold text-slate-700">{text}</span>
+        </div>
+    );
+}
+
+function LicenseDetailsModal({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserData | null }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2.5rem] w-full max-w-xl overflow-hidden shadow-2xl">
+                <div className="bg-blue-600 p-8 text-white flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
+                            <Key className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black">License Key Details</h3>
+                            <p className="text-blue-100 text-xs font-bold">Your purchase information</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><X className="w-6 h-6" /></button>
+                </div>
+                <div className="p-10 space-y-8">
+                    <div className="grid grid-cols-2 gap-8">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Account Email</p>
+                            <p className="font-bold text-slate-900 break-all">{user?.email}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Invoice ID</p>
+                            <p className="font-bold text-slate-900">#523</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Purchase Date</p>
+                            <p className="font-bold text-slate-900">February 27, 2026</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Amount Paid</p>
+                            <p className="font-bold text-slate-900">${getPrice(user?.planName)}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <p className="text-lg font-black text-slate-900">Your License Key</p>
+                            <span className="bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">Important</span>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-200 font-mono font-bold text-slate-900 text-sm overflow-hidden truncate">
+                                {user?.licenseKey}
+                            </div>
+                            <button className="p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+                                <Copy className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
+                        <p className="font-black text-blue-900 text-sm mb-4">How to use this license key:</p>
+                        <ul className="space-y-3 text-sm font-bold text-blue-700">
+                            {[
+                                "Go to WordPress admin → ETIM PRO → Settings → License",
+                                "Paste this key in the license field",
+                                "Click \"Activate License\" button",
+                                "Enjoy all Standard / Pro features immediately"
+                            ].map((step, i) => (
+                                <li key={i} className="flex gap-3">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
+                                    {step}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <Button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black py-8 shadow-xl shadow-blue-600/20 text-lg">
+                        Done
+                    </Button>
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
+function ReceiptModal({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: UserData | null }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl relative">
+                <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors z-10"><X className="w-5 h-5" /></button>
+                <div className="p-8">
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white mb-4 shadow-xl shadow-emerald-500/20">
+                            <Check className="w-8 h-8" strokeWidth={3} />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-900">Thank You!</h3>
+                        <p className="text-slate-500 font-bold text-sm mt-1">Your payment has been successfully processed</p>
+                    </div>
+
+                    <div className="flex justify-between items-start mb-6 gap-6 border-b border-slate-50 pb-6">
+                        <div>
+                            <h4 className="text-blue-600 font-black text-xs uppercase tracking-wider">Thingsatweb Sweden AB</h4>
+                            <p className="text-slate-400 text-[9px] font-bold leading-relaxed mt-0.5">Sockerbruksgatan 7, 53140 Lidköping<br />support-360@thingsatweb.com</p>
+                        </div>
+                        <div className="text-right">
+                            <h4 className="font-black text-slate-900 text-sm">ETIM <span className="text-blue-600">PRO</span></h4>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center py-3 border-b border-slate-50 mb-6">
+                        <p className="font-black text-emerald-500 tracking-tighter text-sm">ORD-2026-0523</p>
+                        <p className="font-bold text-slate-400 text-xs">Feb 27, 2026</p>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                        <div className="flex justify-between items-center bg-slate-50/50 p-3 rounded-xl border border-dotted border-slate-200">
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Name :</p>
+                            <p className="font-black text-slate-900 text-xs uppercase tracking-tight">{user?.displayName}</p>
+                        </div>
+                        <div className="flex justify-between items-center bg-slate-50/50 p-3 rounded-xl border border-dotted border-slate-200">
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Email :</p>
+                            <p className="font-black text-slate-900 text-xs tracking-tight">{user?.email}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-600/20">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <p className="text-lg font-black">Subscription</p>
+                                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-0.5">Yearly</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-lg font-black">{capitalize(user?.planName || "")}</p>
+                                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-0.5">Yearly</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3 border-t border-white/10 pt-6">
+                            <div className="flex justify-between opacity-80 text-sm font-bold">
+                                <span>Price</span>
+                                <span>${getPrice(user?.planName)}</span>
+                            </div>
+                            <div className="flex justify-between opacity-80 text-sm font-bold">
+                                <span>GST (0%)</span>
+                                <span>$0.00</span>
+                            </div>
+                            <div className="flex justify-between text-xl font-black pt-2">
+                                <span>Total</span>
+                                <span>${getPrice(user?.planName)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-8 pt-0">
+                    <div className="bg-emerald-50 p-2.5 rounded-xl text-center mb-6">
+                        <p className="text-[8px] font-black text-emerald-700 uppercase tracking-[0.2em]">Your payment has been securely processed via Razorpay over<br />SSL-encrypted connection.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button className="bg-slate-900 hover:bg-black text-white rounded-xl font-black py-5 text-xs shadow-lg shadow-slate-200">
+                            Download PDF
+                        </Button>
+                        <Button onClick={onClose} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black py-5 text-xs shadow-lg shadow-blue-200">
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 }
