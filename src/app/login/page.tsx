@@ -30,7 +30,11 @@ export default function LoginPage() {
         setError("");
 
         try {
-            const res = await fetch("http://etim.test/index.php?rest_route=/etim/v1/login", {
+            // EDIT THIS: Change this to your public WordPress URL when deploying
+            const WORDPRESS_URL = "http://etim.test";
+            const apiEndpoint = `${WORDPRESS_URL}/index.php?rest_route=/etim/v1/login`;
+
+            const res = await fetch(apiEndpoint, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -154,33 +154,37 @@ export default function MyAccountPage() {
                 );
             case "profile":
                 return (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <h2 className="text-2xl font-bold text-slate-900 px-2">Your Profile Identity</h2>
-                        <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm space-y-10">
-                            <div className="flex flex-col md:flex-row items-center gap-8">
-                                <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center text-slate-400 overflow-hidden">
-                                    <User className="w-12 h-12" />
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-8"
+                    >
+                        <section>
+                            <h2 className="text-3xl font-black text-slate-900 mb-8">Account Identity</h2>
+                            <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                <div className="flex flex-col md:flex-row items-center gap-10 mb-10">
+                                    <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-blue-600/20">
+                                        {user?.displayName.charAt(0)}
+                                    </div>
+                                    <div className="text-center md:text-left">
+                                        <h3 className="text-2xl font-black text-slate-900 mb-2">{user?.displayName}</h3>
+                                        <p className="text-slate-500 font-bold">Member ID: #449210</p>
+                                    </div>
                                 </div>
-                                <div className="text-center md:text-left">
-                                    <h3 className="text-2xl font-bold text-slate-900">{user?.displayName}</h3>
-                                    <p className="text-slate-500 font-medium">Verified Enterprise Member</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-50 pt-10 mb-10">
+                                    <ProfileItem label="Username" value={user?.nicename} />
+                                    <ProfileItem label="Email Address" value={user?.email} />
+                                    <ProfileItem label="Account Status" value="Verified Provider" />
+                                    <ProfileItem label="Region" value="Sweden" />
                                 </div>
-                                <Button className="md:ml-auto bg-slate-900 text-white rounded-xl font-bold px-8 shadow-lg shadow-slate-900/10" asChild>
-                                    <a href="http://etim.test/wp-admin/profile.php" target="_blank" rel="noopener noreferrer">Edit Wordpress Profile</a>
+
+                                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black py-8 shadow-xl shadow-blue-600/20 text-lg group">
+                                    Manage WP Profile
+                                    <ChevronRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </div>
-
-                            <div className="grid md:grid-cols-2 gap-8 pt-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Primary Email Address</label>
-                                    <div className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl text-slate-800 font-bold overflow-hidden truncate">{user?.email}</div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Public Display Name</label>
-                                    <div className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl text-slate-800 font-bold">{user?.displayName}</div>
-                                </div>
-                            </div>
-                        </div>
+                        </section>
                     </motion.div>
                 );
             default:
@@ -364,6 +368,17 @@ function DownloadCard({ title, version, size }: { title: string, version: string
             <Button className="w-full bg-slate-900 hover:bg-black text-white rounded-xl font-bold py-6 shadow-lg shadow-slate-900/10">
                 Download zip
             </Button>
+        </div>
+    );
+}
+
+function ProfileItem({ label, value }: { label: string, value: string | undefined }) {
+    return (
+        <div className="space-y-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">{label}</span>
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-900 font-bold overflow-hidden truncate">
+                {value || "Not specified"}
+            </div>
         </div>
     );
 }
