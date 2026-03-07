@@ -16,7 +16,6 @@ import {
     UserCircle,
     CheckCircle2,
     RefreshCw,
-    Wallet,
     Clock,
     Check,
     Copy,
