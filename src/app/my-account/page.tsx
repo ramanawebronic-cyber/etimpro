@@ -7,21 +7,14 @@ import {
     Mail,
     LogOut,
     LayoutDashboard,
-    Settings,
-    Bell,
     ShieldCheck,
     Package,
-    CreditCard,
     ChevronRight,
-    ExternalLink,
     Key,
     FileText,
     Download,
     UserCircle,
-    Clock,
-    CheckCircle2,
-    Calendar,
-    ArrowUpRight
+    CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

@@ -55,7 +55,7 @@ export default function LoginPage() {
             } else {
                 setError(data.message || "Invalid username or password");
             }
-        } catch (err) {
+        } catch {
             setError("Connection failed. Did you add the code to functions.php?");
         } finally {
             setIsLoading(false);
